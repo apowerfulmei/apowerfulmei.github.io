@@ -1,6 +1,3 @@
-# KLAUS patch_analyzer分析
-
-
 
 [](https://github.com/wupco/KLAUS/tree/main/Syzpatch/patch_analyzer)
 
