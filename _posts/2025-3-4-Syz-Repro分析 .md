@@ -4,6 +4,24 @@
 
 [syzkaller/tools/syz-repro/repro.go at master · google/syzkaller](https://github.com/google/syzkaller/blob/master/tools/syz-repro/repro.go)
 
+## syz-repro的使用
+
+```
+./bin/syz-repro -config=my.cfg /path/to/crash/log
+```
+
+使用syz-repro对log中包含的prog进行复现，这个流程包括
+
+1、提取出可以触发crash的初始prog
+
+2、对这个prog进行简化，基本采用的是逐个syscall削减简化
+
+3、对prog的参数等进行简化
+
+4、将prog转化为C poc
+
+5、对C poc进行简化
+
 
 
 
