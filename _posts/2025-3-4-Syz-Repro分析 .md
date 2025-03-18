@@ -157,3 +157,31 @@ prog/parse.go ParseLog对log文件进行处理
 后面程序会先尝试复现这个prog，并且会记录所有相关的时间
 
 实验测试结果
+
+
+
+## 结果保存
+
+```
+		fmt.Printf("opts: %+v crepro: %v\n\n", res.Opts, res.CRepro)
+		//将程序序列化，写入相关文件
+		progSerialized := res.Prog.Serialize()
+		fmt.Printf("%s\n", progSerialized)
+		if err = osutil.WriteFile(*flagOutput, progSerialized); err == nil {
+			fmt.Printf("program saved to %s\n", *flagOutput)
+		} else {
+			log.Logf(0, "failed to write prog to file: %v", err)
+		}
+
+		if res.Report != nil && *flagTitle != "" {
+			recordTitle(res, *flagTitle)
+		}
+		if res.CRepro {
+			recordCRepro(res, *flagCRepro)
+		}
+		if *flagStrace != "" {
+			result := repro.RunStrace(res, cfg, reporter, pool)
+			recordStraceResult(result, *flagStrace)
+		}
+```
+
