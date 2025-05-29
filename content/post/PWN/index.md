@@ -42,7 +42,7 @@ tee命令的作用：tee命令可以将标准输入的内容导入到标准输�
 /challenge/pwn | tee hint.txt | /challenge/college
 ```
 
-![image.png](./images/image.png)
+![image.png](image.png)
 
 随后按照提示的用法，将pwn命令的输出导入给college即可得到flag
 
