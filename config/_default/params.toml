@@ -19,7 +19,7 @@ subtitle = "Lorem ipsum dolor sit amet, consectetur adipiscing elit."
 [sidebar.avatar]
 enabled = true
 local = true
-src = "img/avatar.png"
+src = "img/d2.jpg"
 
 [article]
 headingAnchor = false
