@@ -1,5 +1,19 @@
-# Syz-Repro分析
+---
+title: Syz-repro
+description: syz-repro的一些分析
+slug: syz-repro
+date: 2025-05-29 00:00:00+0000
+categories:
+    - Fuzz
+tags:
+    - fuzz
+    - syzkaller
+weight: 1       # You can add weight to some posts to override the default sorting (date descending)
+---
 
+
+
+# Syz-Repro分析
 
 
 [syzkaller/tools/syz-repro/repro.go at master · google/syzkaller](https://github.com/google/syzkaller/blob/master/tools/syz-repro/repro.go)
@@ -161,6 +175,8 @@ prog/parse.go ParseLog对log文件进行处理
 
 
 ## 结果保存
+
+复现的结果保存到相关的文件里。
 
 ```
 		fmt.Printf("opts: %+v crepro: %v\n\n", res.Opts, res.CRepro)
