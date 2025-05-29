@@ -99,7 +99,7 @@ qemu-system-x86_64 \
 
 运行成功：
 
-![image.png](image%201.png)
+![image.png](image1.png)
 
 ### 2.3 材料准备
 
@@ -134,13 +134,13 @@ scp -i ./image/bullseye.id_rsa -P 10022 /home/ranma/eBPF/buzzer/bazel-bin/buzzer
 
 运行效果：
 
-![image.png](image%202.png)
+![image.png](image2.png)
 
 ## 报错
 
 ### 错误1
 
-![image.png](image%203.png)
+![image.png](image3.png)
 
 看上去似乎是bazel版本过高带来的问题，安装低版本的7.4.0 bazel即可解决
 
@@ -153,11 +153,11 @@ sudo ln -s /usr/bin/bazel-7.4.0 /usr/bin/bazel
 
 传输文件vmlinux遇到qemu空间不足
 
-![image.png](image%204.png)
+![image.png](image4.png)
 
 使用create-image.sh创建一个/root空间更大的image，修改SEEK参数，这里改为4G
 
-![image.png](image%205.png)
+![image.png](image5.png)
 
 ### 错误3
 
