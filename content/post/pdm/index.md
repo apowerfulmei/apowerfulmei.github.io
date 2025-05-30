@@ -2,7 +2,7 @@
 title: pdm的用法
 description: pdm使用心得
 slug: hello pdm
-date: 2025-05-29 00:00:00+0000
+date: 2025-05-30 00:00:00+0000
 categories:
     - Python
 tags:
