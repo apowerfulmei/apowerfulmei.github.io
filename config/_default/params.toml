@@ -77,10 +77,10 @@ enabled = true
 ## Comments
 [comments]
 enabled = true
-provider = "gitalk"
+provider = "disqus"
 
 [comments.disqusjs]
-shortname = ""
+shortname = "powerfulmei"
 apiUrl = ""
 apiKey = ""
 admin = ""
