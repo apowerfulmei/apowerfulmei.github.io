@@ -80,10 +80,10 @@ enabled = true
 provider = "disqus"
 
 [comments.disqusjs]
-shortname = "powerfulmei"
+shortname = "powerfulmeiblog"
 apiUrl = ""
 apiKey = ""
-admin = ""
+admin = "apowerfulmei"
 adminLabel = ""
 
 [comments.utterances]
