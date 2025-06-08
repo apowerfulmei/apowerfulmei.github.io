@@ -83,7 +83,7 @@ provider = "disqus"
 shortname = "powerfulmeiblog"
 apiUrl = ""
 apiKey = ""
-admin = "apowerfulmei"
+admin = ""
 adminLabel = ""
 
 [comments.utterances]
