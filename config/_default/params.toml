@@ -5,8 +5,10 @@ rssFullContent = true
 favicon = "/favicon.png"
 
 [footer]
-customText = """网站总访客数：<span id='busuanzi_value_site_uv'>Loading</span><br/>
-      网站总访问量：<span id='busuanzi_value_site_pv'>Loading</span>
+customText = """网站总访客数：<span id='busuanzi_value_site_uv' style='margin-right:50px'>Loading</span> 网站总访问量：<span id='busuanzi_value_site_pv' style='margin-right:50px'>Loading</span>
+<a href='https://cloud.umami.is/share/Bjf4XBFngV0tHdVS/apowerfulmei.github.io' style='color:blue' target='_blank'>网站访问详细统计</a>
+<br/>
+      <span id='span_show_age'  style='margin-right:50px'/>
      """
 since = 2024
 
