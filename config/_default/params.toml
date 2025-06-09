@@ -138,8 +138,8 @@ repoID = "R_kgDOOyWt8Q"
 category = "Announcements"
 categoryID = "DIC_kwDOOyWt8c4CrPHr"
 mapping = "pathname"
-lightTheme = "preferred_color_scheme"
-darkTheme = "preferred_color_scheme"
+lightTheme = "light"
+darkTheme = "dark"
 reactionsEnabled = 1
 emitMetadata = 0
 
