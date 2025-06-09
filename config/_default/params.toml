@@ -82,7 +82,7 @@ enabled = true
 ## Comments
 [comments]
 enabled = true
-provider = "gitcus"
+provider = "giscus"
 
 [comments.disqusjs]
 shortname = "powerfulmeiblog"
