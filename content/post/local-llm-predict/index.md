@@ -2,7 +2,7 @@
 title: 调用本地大模型进行predict
 description: 大模型predict记录
 slug: hello local-llm-predict
-date: 2025-05-30 00:00:00+0000
+date: 2025-06-10 00:00:00+0000
 categories:
     - LLM
 tags:
@@ -62,14 +62,14 @@ model_inputs = tokenizer([text], return_tensors="pt").to(device)
 
 看看model_inputs直接打印出来输出的内容。
 
-![input_id](./image/input_ids.png)
+![input_id](./input_ids.png)
 
 可以看到分词器将文字转化为了模型可理解的数字序列，每个数字对应分词器词汇表中的一个词/子词。
 
 `tokenize=False`参数会让函数以文本的形式输出结果，否则将以id的形式输出结果。
 
 `add_generation_prompt=True`会在输出的结果中增加一个assistant的操作，这里我们将text以文本的形式打印出来看看。
-![assistant](./image/assistant.png)
+![assistant](./assistant.png)
 
 `enable_thinking`则是决定是否要启动大模型的思考模式，启动以后会延长思考时间，这里我直接关闭了。
 
@@ -86,7 +86,7 @@ generated_ids = model.generate(
 
 这里输出的generated_ids也是以id的形式展现的，要使用tokenizer将其转换为自认语言。
 
-![generate_id](./image/generate.png)
+![generate_id](./generate.png)
 
 ### 解析输出
 这一步，我们将大模型的输出解码，转为自然语言。
