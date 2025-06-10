@@ -26,23 +26,78 @@ Qwen3 1.7b
 + 解析输出
   
 ### 初始化
-在这一步，我们将加载本地大模型和分词器。
+在这一步，我们将加载本地大模型和分词器，使用Hugging Face的`from_pretrained`函数。
 
-```
-
+```python
+model = AutoModelForCausalLM.from_pretrained(
+    "./Qwen", 
+    device_map="auto",
+    trust_remote_code=True,
+)
+tokenizer = AutoTokenizer.from_pretrained("./Qwen")
 ```
 
 ### 构建输入
-在这一步，我们构建prompt作为输入。
+在这一步，我们构建prompt作为输入，首先构造一个基础的消息文本。
 
+```python
+messages = [
+    {"role": "system", "content": f"{prompt}"},
+    {"role": "user", "content": f"{prompt_u}"}
+]
+```
 
+然后用分词器构造template，将文字文本转化为大模型可以处理的输入格式。
+
+```python
+text = tokenizer.apply_chat_template(
+    messages,
+    tokenize=False,
+    add_generation_prompt=True,
+    enable_thinking=False
+)
+
+model_inputs = tokenizer([text], return_tensors="pt").to(device)
+```
+
+看看model_inputs直接打印出来输出的内容。
+
+![input_id](./image/input_ids.png)
+
+可以看到分词器将文字转化为了模型可理解的数字序列，每个数字对应分词器词汇表中的一个词/子词。
+
+`tokenize=False`参数会让函数以文本的形式输出结果，否则将以id的形式输出结果。
+
+`add_generation_prompt=True`会在输出的结果中增加一个assistant的操作，这里我们将text以文本的形式打印出来看看。
+![assistant](./image/assistant.png)
+
+`enable_thinking`则是决定是否要启动大模型的思考模式，启动以后会延长思考时间，这里我直接关闭了。
 
 ### 使用模型进行推理
 这一步，我们将上一步得到的输入传递给大模型进行推理，得到推理结果。
 
+```python
+generated_ids = model.generate(
+    model_inputs.input_ids,
+    max_new_tokens=MAX_LENGTH,
+    temperature=1.0,
+)
+```
+
+这里输出的generated_ids也是以id的形式展现的，要使用tokenizer将其转换为自认语言。
+
+![generate_id](./image/generate.png)
 
 ### 解析输出
 这一步，我们将大模型的输出解码，转为自然语言。
+
+```
+generated_ids = [
+    output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+]
+
+response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+```
 
 
 ## 推理加速
@@ -53,9 +108,11 @@ Qwen3 1.7b
 后面找到了一些加速的方法，请容我细细道来。
 
 ### 增大 batch size
-简单来说就是在tokenizer中添加多个请求内容，让大模型同时处理，生成多个response。你可以把这一步理解为**并发**。
+简单来说就是在tokenizer中添加多个请求内容，让大模型同时处理，生成多个response。最大化GPU计算单元利用率​。这个过程很像**并发**。
 
 ### 使用多个GPU
+这自然就没什么好说的。
+
 
 ## 完整程序代码
 
