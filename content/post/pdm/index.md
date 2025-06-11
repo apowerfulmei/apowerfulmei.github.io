@@ -136,6 +136,34 @@ pdm update package
 pdm config
 ```
 
+#### 下载依赖并使用pdm环境
+
+```
+pdm install
+```
+
+执行命令，pdm将下载pyproject.toml中的依赖项。
+
+此外，配置环境的方法有两种，分别是**虚拟环境**和**PEP 582**环境：
+
+虚拟环境下将创建一个`.venv`目录，目录中存放了下载的各种依赖包，可执行以下命令进行操作：
+
+```
+# 列举虚拟环境下的依赖项
+pdm venv list
+
+# 激活虚拟环境，test为项目名称
+eval $(pdm venv activate for-test)
+```
+
+PEP 582环境将创建一个`__pypackages__`目录，目录下存放各种依赖包。在PEP 582环境下执行python命令如下：
+
+```
+pdm run python3 test.py
+```
+`pdm run`会做两件事：1、在执行命令前，插入 `__pypackages__` 目录到 PYTHONPATH 中；2、在执行命令后，删除 PYTHONPATH 中的 `__pypackages__` 目录。
+
+
 ## 一些方便的方法
 
 ### 配置已有项目
@@ -150,11 +178,14 @@ pigar gen
 
 然后直接import即可。
 ```
-pdm import -f requirements .\requirements.txt
+pdm import -f requirements ./requirements.txt
 ```
+
+不过实践证明pigar创建的requirements所包含的依赖不一定齐全。
 
 ## 参考
 https://pdm-project.org/zh-cn/latest/
 https://geekdaxue.co/read/yumingmin@python/mi4af1
 https://blog.csdn.net/penntime/article/details/140191708
 https://www.cnblogs.com/liwenchao1995/p/17421496.html
+https://zhuanlan.zhihu.com/p/492331707
