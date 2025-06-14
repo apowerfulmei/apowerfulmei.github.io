@@ -1,0 +1,2309 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Posts on apowerfulmei</title><link>https://apowerfulmei.github.io/post/</link><description>Recent content in Posts on apowerfulmei</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Sat, 14 Jun 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://apowerfulmei.github.io/post/index.xml" rel="self" type="application/rss+xml"/><item><title>BRF复现</title><link>https://apowerfulmei.github.io/p/hello-brf/</link><pubDate>Sat, 14 Jun 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-brf/</guid><description>&lt;h1 id="brf">BRF
+&lt;/h1>&lt;h2 id="简介">简介
+&lt;/h2>&lt;p>&lt;a class="link" href="https://dl.acm.org/doi/abs/10.1145/3643778" target="_blank" rel="noopener"
+>BRF: Fuzzing the eBPF Runtime&lt;/a> 是一个针对ebpf runtime组件的模糊测试工具。它旨在解决syzkaller对ebpf模糊测试低效的问题，从程序语义、程序依赖、程序执行三个要点出发，生成了有高verifier通过率、以及丰富语义（即包含了一些列helper与map操作）的C程序，并与syzkaller结合，对ebpf进行模糊测试，大大提升了代码覆盖率，并发现了6个新的ebpf漏洞。&lt;/p>
+&lt;p>仓库地址：https://github.com/trusslab/brf&lt;/p>
+&lt;h2 id="复现">复现
+&lt;/h2>&lt;h3 id="基础复现流程">基础复现流程
+&lt;/h3>&lt;p>BRF仓库的README文件提供了详细的复现流程，可以直接按照这个流程走下来。不过在这个过程中，我仍然遇到了一些难以解决的问题。&lt;/p>
+&lt;h3 id="brf编译问题">BRF编译问题
+&lt;/h3>&lt;p>在make BRF源代码时，会产生报错&lt;/p>
+&lt;h2 id="微调流程">微调流程
+&lt;/h2>&lt;h2 id="微调后的大模型使用">微调后的大模型使用
+&lt;/h2>&lt;h2 id="参考">参考
+&lt;/h2></description></item><item><title>Docker的用法</title><link>https://apowerfulmei.github.io/p/hello-docker/</link><pubDate>Wed, 11 Jun 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-docker/</guid><description>&lt;h1 id="docker使用">Docker使用
+&lt;/h1>&lt;p>第一次接触Docker，是在本科做seed lab实验的时候，迄今仍与我的学习科研紧密相关。不过过了这么久，也没有将我的一些使用心得记录下来，今天在这里开个帖子，记录一些Docker的基础用法，也借机探讨一下更深层次的技术与知识。&lt;/p></description></item><item><title>调用本地大模型进行predict</title><link>https://apowerfulmei.github.io/p/hello-local-llm-predict/</link><pubDate>Tue, 10 Jun 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-local-llm-predict/</guid><description>&lt;h1 id="本地大模型调用">本地大模型调用
+&lt;/h1>&lt;p>最近用Lora微调了一个小模型，生成一些小程序，记录一下我是怎么在本地部署使用的。&lt;/p>
+&lt;h2 id="实验环境">实验环境
+&lt;/h2>&lt;p>A800 80G GPU
+Qwen3 1.7b&lt;/p>
+&lt;h2 id="使用模型进行推理">使用模型进行推理
+&lt;/h2>&lt;p>大模型部署好以后，怎么调用大模型进行推理工作呢？整个流程可以分为4步：&lt;/p>
+&lt;ul>
+&lt;li>初始化&lt;/li>
+&lt;li>构建输入&lt;/li>
+&lt;li>大模型生成&lt;/li>
+&lt;li>解析输出&lt;/li>
+&lt;/ul>
+&lt;h3 id="初始化">初始化
+&lt;/h3>&lt;p>在这一步，我们将加载本地大模型和分词器，使用Hugging Face的&lt;code>from_pretrained&lt;/code>函数。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">model&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoModelForCausalLM&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;./Qwen&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">device_map&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;auto&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">trust_remote_code&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">tokenizer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;./Qwen&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="构建输入">构建输入
+&lt;/h3>&lt;p>在这一步，我们构建prompt作为输入，首先构造一个基础的消息文本。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">messages&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;system&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">prompt&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;user&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">prompt_u&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>然后用分词器构造template，将文字文本转化为大模型可以处理的输入格式。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">apply_chat_template&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">messages&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">tokenize&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">add_generation_prompt&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">enable_thinking&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model_inputs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">return_tensors&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;pt&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>看看model_inputs直接打印出来输出的内容。&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-local-llm-predict/input_ids.png"
+width="1432"
+height="484"
+srcset="https://apowerfulmei.github.io/p/hello-local-llm-predict/input_ids_hu_5aca08fef658bdc9.png 480w, https://apowerfulmei.github.io/p/hello-local-llm-predict/input_ids_hu_6f748edef6e5bf25.png 1024w"
+loading="lazy"
+alt="input_id"
+class="gallery-image"
+data-flex-grow="295"
+data-flex-basis="710px"
+>&lt;/p>
+&lt;p>可以看到分词器将文字转化为了模型可理解的数字序列，每个数字对应分词器词汇表中的一个词/子词。&lt;/p>
+&lt;p>&lt;code>tokenize=False&lt;/code>参数会让函数以文本的形式输出结果，否则将以id的形式输出结果。&lt;/p>
+&lt;p>&lt;code>add_generation_prompt=True&lt;/code>会在输出的结果中增加一个assistant的操作，这里我们将text以文本的形式打印出来看看。
+&lt;img src="https://apowerfulmei.github.io/p/hello-local-llm-predict/assistant.png"
+width="514"
+height="216"
+srcset="https://apowerfulmei.github.io/p/hello-local-llm-predict/assistant_hu_2c42730e23df5259.png 480w, https://apowerfulmei.github.io/p/hello-local-llm-predict/assistant_hu_65930f6dbd88f2fb.png 1024w"
+loading="lazy"
+alt="assistant"
+class="gallery-image"
+data-flex-grow="237"
+data-flex-basis="571px"
+>&lt;/p>
+&lt;p>&lt;code>enable_thinking&lt;/code>则是决定是否要启动大模型的思考模式，启动以后会延长思考时间，这里我直接关闭了。&lt;/p>
+&lt;h3 id="使用模型进行推理-1">使用模型进行推理
+&lt;/h3>&lt;p>这一步，我们将上一步得到的输入传递给大模型进行推理，得到推理结果。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">generated_ids&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">generate&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">model_inputs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">max_new_tokens&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">MAX_LENGTH&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">temperature&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1.0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里输出的generated_ids也是以id的形式展现的，要使用tokenizer将其转换为自认语言。&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-local-llm-predict/generate.png"
+width="1034"
+height="150"
+srcset="https://apowerfulmei.github.io/p/hello-local-llm-predict/generate_hu_a248b6755d24b56.png 480w, https://apowerfulmei.github.io/p/hello-local-llm-predict/generate_hu_6d8023a1f354fd1f.png 1024w"
+loading="lazy"
+alt="generate_id"
+class="gallery-image"
+data-flex-grow="689"
+data-flex-basis="1654px"
+>&lt;/p>
+&lt;h3 id="解析输出">解析输出
+&lt;/h3>&lt;p>这一步，我们将大模型的输出解码，转为自然语言。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">generated_ids = [
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="推理加速">推理加速
+&lt;/h2>&lt;p>跑着跑着，我就发现一些不对劲了，怎么生成速率这么慢？我统计了大模型进行10次推理任务所需的时间，生成一个1500 token长度的程序得花上&lt;strong>37s&lt;/strong>，这对吗？&lt;/p>
+&lt;p>这不对，要知道我用的是个小模型，结果速度还不如网页大模型。&lt;/p>
+&lt;p>后面找到了一些加速的方法，请容我细细道来。&lt;/p>
+&lt;h3 id="增大-batch-size">增大 batch size
+&lt;/h3>&lt;p>简单来说就是在tokenizer中添加多个请求内容，让大模型同时处理，生成多个response。最大化GPU计算单元利用率​。这个过程很像&lt;strong>并发&lt;/strong>。&lt;/p>
+&lt;h3 id="使用多个gpu">使用多个GPU
+&lt;/h3>&lt;p>这自然就没什么好说的。&lt;/p>
+&lt;h2 id="完整程序代码">完整程序代码
+&lt;/h2>&lt;h3 id="初始版本">初始版本
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;span class="lnt">53
+&lt;/span>&lt;span class="lnt">54
+&lt;/span>&lt;span class="lnt">55
+&lt;/span>&lt;span class="lnt">56
+&lt;/span>&lt;span class="lnt">57
+&lt;/span>&lt;span class="lnt">58
+&lt;/span>&lt;span class="lnt">59
+&lt;/span>&lt;span class="lnt">60
+&lt;/span>&lt;span class="lnt">61
+&lt;/span>&lt;span class="lnt">62
+&lt;/span>&lt;span class="lnt">63
+&lt;/span>&lt;span class="lnt">64
+&lt;/span>&lt;span class="lnt">65
+&lt;/span>&lt;span class="lnt">66
+&lt;/span>&lt;span class="lnt">67
+&lt;/span>&lt;span class="lnt">68
+&lt;/span>&lt;span class="lnt">69
+&lt;/span>&lt;span class="lnt">70
+&lt;/span>&lt;span class="lnt">71
+&lt;/span>&lt;span class="lnt">72
+&lt;/span>&lt;span class="lnt">73
+&lt;/span>&lt;span class="lnt">74
+&lt;/span>&lt;span class="lnt">75
+&lt;/span>&lt;span class="lnt">76
+&lt;/span>&lt;span class="lnt">77
+&lt;/span>&lt;span class="lnt">78
+&lt;/span>&lt;span class="lnt">79
+&lt;/span>&lt;span class="lnt">80
+&lt;/span>&lt;span class="lnt">81
+&lt;/span>&lt;span class="lnt">82
+&lt;/span>&lt;span class="lnt">83
+&lt;/span>&lt;span class="lnt">84
+&lt;/span>&lt;span class="lnt">85
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">transformers&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">AutoModelForCausalLM&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">BitsAndBytesConfig&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">peft&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">LoraConfig&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">get_peft_model&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">PeftModel&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">torch&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">random&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">time&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoModelForCausalLM&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;./Qwen&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">device_map&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;auto&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">trust_remote_code&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">peft_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">LoraConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">task_type&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;CAUSAL_LM&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">inference_mode&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">r&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">8&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">lora_alpha&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">32&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">lora_dropout&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">target_modules&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;q_proj&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;v_proj&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PeftModel&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;lora_adapter10-30&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;load peft&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">tokenizer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;./Qwen&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">prompt&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;your system prompt&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">prompt_u&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;your user prompt&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">MAX_LENGTH&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1500&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">predict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">messages&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">device&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;cuda&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">apply_chat_template&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">messages&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">tokenize&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">add_generation_prompt&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">enable_thinking&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">model_inputs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">return_tensors&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;pt&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ones&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_inputs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">long&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;cuda&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">generated_ids&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">generate&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">model_inputs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">attention_mask&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">max_new_tokens&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">MAX_LENGTH&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">temperature&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1.0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">generated_ids&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">output_ids&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="p">):]&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">input_ids&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">output_ids&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">zip&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_inputs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">generated_ids&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">batch_decode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">generated_ids&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">skip_special_tokens&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">)[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">response&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">save_dir&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;./seeds/&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">total&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">for&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">start_time&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">time&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">time&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">messages&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;system&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">prompt&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;user&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">prompt_u&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">format&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">num&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">random&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">randint&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">40&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">predict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">messages&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">end_time&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">time&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">time&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">total&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">end_time&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">start_time&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;Generation time: &lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">end_time&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">start_time&lt;/span>&lt;span class="si">:&lt;/span>&lt;span class="s2">.2f&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2"> seconds&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">response_text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> LLM:&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> &amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response_text&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">file&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">save_dir&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">seed_&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">.txt&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">with&lt;/span> &lt;span class="nb">open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;w&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">f&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">f&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;average generation time: &lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">total&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="si">:&lt;/span>&lt;span class="s2">.2f&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2"> seconds&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="参考">参考
+&lt;/h2></description></item><item><title>pdm的用法</title><link>https://apowerfulmei.github.io/p/hello-pdm/</link><pubDate>Fri, 30 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-pdm/</guid><description>&lt;h1 id="pdm使用">PDM使用
+&lt;/h1>&lt;p>PDM是一个python包管理器，不过它&lt;strong>不是一个虚拟环境&lt;/strong>，它可以将依赖安装到项目本地的__pypackages__目录，而非全局目录，从而避免污染全局环境并且实现项目隔离。&lt;/p>
+&lt;p>在PDM环境下，项目将优先从__pypackages__中搜索包，实现的原理就是在全局的 site-packages 目录之前加上项目目录里的__pypackages__路径，使得__pypackages__的搜索优先级高于全局的 Python 环境。&lt;/p>
+&lt;p>&lt;strong>目前我只写了一些初级的用法，后面我会随着我的深入使用更新我的博客。&lt;/strong>&lt;/p>
+&lt;h2 id="下载与安装">下载与安装
+&lt;/h2>&lt;p>使用pip下载，可能会出先网络连接不成功，下载失败的情况，这种情况指定国内源即可：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">pip install pdm
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">pip3 install -i https://pypi.tuna.tsinghua.edu.cn/simple pdm
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="使用">使用
+&lt;/h2>&lt;h3 id="pdm-install速度慢处理">pdm install速度慢处理
+&lt;/h3>&lt;p>指定pdm使用国内源：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">pdm config pypi.url https://pypi.tuna.tsinghua.edu.cn/simple
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="创建项目">创建项目
+&lt;/h3>&lt;p>创建项目的时候会让依次输入使用的python解释器版本、项目名、邮件等等信息，一板一眼确实挺不错的。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">mkdir my-project &amp;amp;&amp;amp; cd my-project
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">pdm init
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>init成功以后会在目录下创建下面的三个文件：&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>.pdm-python&lt;/p>
+&lt;p>.pdm-python中存放了python解释器的路径&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>pdm.lock&lt;/p>
+&lt;ul>
+&lt;li>所有软件包及其版本&lt;/li>
+&lt;li>包的文件名和哈希值&lt;/li>
+&lt;li>用于下载包的源 URL&lt;/li>
+&lt;li>每个包的依赖项和标记&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"># This file is @generated by PDM.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"># It is not intended for manual editing.
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">[metadata]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">groups = [&amp;#34;default&amp;#34;]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">strategy = [&amp;#34;inherit_metadata&amp;#34;]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">lock_version = &amp;#34;4.5.0&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">content_hash = &amp;#34;sha256:5e86f537f04c413e1ae880b74cc0ddbde0cac75b48683e80298d9a986d7e06c5&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">[[metadata.targets]]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">requires_python = &amp;#34;==3.12.*&amp;#34;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;ul>
+&lt;li>
+&lt;p>pyproject.toml&lt;/p>
+&lt;p>pyproject.toml中则存放了一些相关信息。&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="p">[&lt;/span>&lt;span class="n">project&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;test&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">version&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;0.1.0&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">description&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;Default template for PDM package&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">authors&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="n">name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;apowerfulmei&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">email&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;1234@qq.com&amp;#34;&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">dependencies&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">requires&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="n">python&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;==3.12.*&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">readme&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;README.md&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">license&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">{&lt;/span>&lt;span class="n">text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;MIT&amp;#34;&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">[&lt;/span>&lt;span class="k">tool&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">pdm&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">distribution&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="bp">false&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="依赖项管理">依赖项管理
+&lt;/h3>&lt;h4 id="增加依赖项">增加依赖项
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl">&lt;span class="n">pdm&lt;/span> &lt;span class="n">add&lt;/span> &lt;span class="n">packages&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">localpath&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="n">url&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">pdm&lt;/span> &lt;span class="n">add&lt;/span> &lt;span class="n">pandas&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">pdm&lt;/span> &lt;span class="n">add&lt;/span> &lt;span class="n">pandas&lt;/span>&lt;span class="o">==&lt;/span>&lt;span class="mf">2.2&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="mi">2&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">pdm&lt;/span> &lt;span class="n">add&lt;/span> &lt;span class="o">./&lt;/span>&lt;span class="n">package&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">pdm&lt;/span> &lt;span class="n">add&lt;/span> &lt;span class="s2">&amp;#34;https://github.com/numpy/numpy/releases/download/v1.20.0/numpy-1.20.0.tar.gz&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">pdm&lt;/span> &lt;span class="n">add&lt;/span> &lt;span class="s2">&amp;#34;git+https://github.com/pypa/pip.git@22.0&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>add的参数可以是包的名称，可以是本地包的路径（&lt;strong>本地路径要以./开头，否则会被视为普通包的命名&lt;/strong>），可以是URL，也可以是VCS 依赖项。&lt;/p>
+&lt;p>增加依赖项的时候指定版本或许会是个好习惯。&lt;/p>
+&lt;h4 id="移除依赖项">移除依赖项
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">pdm remove pandas
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="更新依赖项">更新依赖项
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">pdm update package
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>将依赖项更新到更新的版本。&lt;/p>
+&lt;h3 id="配置项目">配置项目
+&lt;/h3>&lt;h4 id="更改pdm配置">更改pdm配置
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">pdm config
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="下载依赖并使用pdm环境">下载依赖并使用pdm环境
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">pdm install
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>执行命令，pdm将下载pyproject.toml中的依赖项。&lt;/p>
+&lt;p>此外，配置环境的方法有两种，分别是&lt;strong>虚拟环境&lt;/strong>和&lt;strong>PEP 582&lt;/strong>环境：&lt;/p>
+&lt;p>虚拟环境下将创建一个&lt;code>.venv&lt;/code>目录，目录中存放了下载的各种依赖包，可执行以下命令进行操作：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"># 列举虚拟环境下的依赖项
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">pdm venv list
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"># 激活虚拟环境，test为项目名称
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">eval $(pdm venv activate for-test)
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>PEP 582环境将创建一个&lt;code>__pypackages__&lt;/code>目录，目录下存放各种依赖包。在PEP 582环境下执行python命令如下：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">pdm run python3 test.py
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;code>pdm run&lt;/code>会做两件事：1、在执行命令前，插入 &lt;code>__pypackages__&lt;/code> 目录到 PYTHONPATH 中；2、在执行命令后，删除 PYTHONPATH 中的 &lt;code>__pypackages__&lt;/code> 目录。&lt;/p>
+&lt;h2 id="一些方便的方法">一些方便的方法
+&lt;/h2>&lt;h3 id="配置已有项目">配置已有项目
+&lt;/h3>&lt;p>有时候我们会在创建了一个包含大量包的python项目后才想起来使用pdm进行包管理，这种情况应该怎么做呢？&lt;/p>
+&lt;p>可以先用pigar生成一个requirements.txt文件：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">pip install pigar
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">pigar gen
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>然后直接import即可。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">pdm import -f requirements ./requirements.txt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>不过实践证明pigar创建的requirements所包含的依赖不一定齐全。&lt;/p>
+&lt;h2 id="参考">参考
+&lt;/h2>&lt;p>&lt;a class="link" href="https://pdm-project.org/zh-cn/latest/" target="_blank" rel="noopener"
+>https://pdm-project.org/zh-cn/latest/&lt;/a>
+&lt;a class="link" href="https://geekdaxue.co/read/yumingmin@python/mi4af1" target="_blank" rel="noopener"
+>https://geekdaxue.co/read/yumingmin@python/mi4af1&lt;/a>
+&lt;a class="link" href="https://blog.csdn.net/penntime/article/details/140191708" target="_blank" rel="noopener"
+>https://blog.csdn.net/penntime/article/details/140191708&lt;/a>
+&lt;a class="link" href="https://www.cnblogs.com/liwenchao1995/p/17421496.html" target="_blank" rel="noopener"
+>https://www.cnblogs.com/liwenchao1995/p/17421496.html&lt;/a>
+&lt;a class="link" href="https://zhuanlan.zhihu.com/p/492331707" target="_blank" rel="noopener"
+>https://zhuanlan.zhihu.com/p/492331707&lt;/a>&lt;/p></description></item><item><title>Buzzer Fuzz</title><link>https://apowerfulmei.github.io/p/buzzer/</link><pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/buzzer/</guid><description>&lt;h1 id="buzzer复现">Buzzer复现
+&lt;/h1>&lt;h2 id="1环境搭建">1、环境搭建
+&lt;/h2>&lt;h3 id="11-依赖与工具">1.1 依赖与工具
+&lt;/h3>&lt;p>&lt;a class="link" href="https://bazel.build/install/ubuntu?hl=zh-cn" target="_blank" rel="noopener"
+>bazel&lt;/a>&lt;/p>
+&lt;p>clang安装 我使用的是llvm-10&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">bazel&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">install&lt;/span> &lt;span class="nx">apt&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">transport&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">https&lt;/span> &lt;span class="nx">curl&lt;/span> &lt;span class="nx">gnupg&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">y&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">curl&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">fsSL&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="c1">//bazel.build/bazel-release.pub.gpg | gpg --dearmor &amp;gt;bazel-archive-keyring.gpg
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">mv&lt;/span> &lt;span class="nx">bazel&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">archive&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">keyring&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">gpg&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">usr&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">share&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">keyrings&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">echo&lt;/span> &lt;span class="s2">&amp;#34;deb [arch=amd64 signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8&amp;#34;&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="nx">sudo&lt;/span> &lt;span class="nx">tee&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">etc&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apt&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">sources&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">list&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">d&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bazel&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">list&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">update&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">install&lt;/span> &lt;span class="nx">bazel&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">update&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">full&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">upgrade&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>设置环境变量，设置clang和clang++的路径&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="kr">export&lt;/span> &lt;span class="nx">CC&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">clang&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">export&lt;/span> &lt;span class="nx">CXX&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">clang&lt;/span>&lt;span class="o">++&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>运行，使用bazel构建buzzer&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">git&lt;/span> &lt;span class="nx">clone&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="c1">//github.com/google/buzzer.git
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="nx">cd&lt;/span> &lt;span class="nx">buzzer&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">bazel&lt;/span> &lt;span class="nx">build&lt;/span> &lt;span class="o">:&lt;/span>&lt;span class="nx">buzzer&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>build过程中可能会遭遇问题一，需要使用低版本的bazel才可顺利完成build&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image.png"
+width="952"
+height="231"
+srcset="https://apowerfulmei.github.io/p/buzzer/image_hu_eb57c554a7b48315.png 480w, https://apowerfulmei.github.io/p/buzzer/image_hu_798c20148051ea67.png 1024w"
+loading="lazy"
+alt="image.png"
+class="gallery-image"
+data-flex-grow="412"
+data-flex-basis="989px"
+>&lt;/p>
+&lt;h2 id="2run-buzzer-with-coverage">2、run Buzzer with coverage
+&lt;/h2>&lt;p>&lt;a class="link" href="https://github.com/google/buzzer/blob/main/docs/guides/running_with_coverage.md" target="_blank" rel="noopener"
+>https://github.com/google/buzzer/blob/main/docs/guides/running_with_coverage.md&lt;/a>&lt;/p>
+&lt;h3 id="21-准备">2.1 准备
+&lt;/h3>&lt;p>bullseye.img准备&lt;/p>
+&lt;p>linux kernel准备&lt;/p>
+&lt;p>注意：&lt;code>CONFIG_BPF=y&lt;/code> and &lt;code>CONFIG_BPF_SYSCALL=y&lt;/code>&lt;/p>
+&lt;h3 id="22-qemu-vm运行">2.2 qemu vm运行
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">qemu&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">system&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">x86_64&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">m&lt;/span> &lt;span class="mi">20&lt;/span>&lt;span class="nx">G&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">smp&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">cpu&lt;/span> &lt;span class="nx">host&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">kernel&lt;/span> &lt;span class="nx">PATH_TO_KERNEL_REPO&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">arch&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">x86&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">boot&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bzImage&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">append&lt;/span> &lt;span class="s2">&amp;#34;console=ttyS0 root=/dev/sda nokaslr earlyprintk=serial net.ifnames=0&amp;#34;&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">drive&lt;/span> &lt;span class="nx">file&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">PATH_TO_DEBIAN_IMAGE&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">img&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">format&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">raw&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">net&lt;/span> &lt;span class="nx">user&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">host&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">10.0.2.10&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">hostfwd&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">tcp&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mf">127.0.0.1&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mi">10022&lt;/span>&lt;span class="o">-:&lt;/span>&lt;span class="mi">22&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">hostfwd&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">tcp&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mf">0.0.0.0&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mi">8080&lt;/span>&lt;span class="o">-:&lt;/span>&lt;span class="mi">8080&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">net&lt;/span> &lt;span class="nx">nic&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">model&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">e1000&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">enable&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">kvm&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">nographic&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">pidfile&lt;/span> &lt;span class="nx">vm&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">pid&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="mi">2&lt;/span>&lt;span class="o">&amp;gt;&amp;amp;&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="nx">tee&lt;/span> &lt;span class="nx">vm&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">log&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">my&lt;/span> &lt;span class="nx">cmd&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">qemu&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">system&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">x86_64&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">m&lt;/span> &lt;span class="mi">20&lt;/span>&lt;span class="nx">G&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">smp&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">cpu&lt;/span> &lt;span class="nx">host&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">kernel&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">arch&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">x86&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">boot&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bzImage&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">append&lt;/span> &lt;span class="s2">&amp;#34;console=ttyS0 root=/dev/sda nokaslr earlyprintk=serial net.ifnames=0&amp;#34;&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">drive&lt;/span> &lt;span class="nx">file&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="err">/home/ranma/image/stretch.img,format=raw \&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">net&lt;/span> &lt;span class="nx">user&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">host&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">10.0.2.10&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">hostfwd&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">tcp&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mf">127.0.0.1&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mi">10022&lt;/span>&lt;span class="o">-:&lt;/span>&lt;span class="mi">22&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">hostfwd&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">tcp&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mf">0.0.0.0&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mi">8080&lt;/span>&lt;span class="o">-:&lt;/span>&lt;span class="mi">8080&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">net&lt;/span> &lt;span class="nx">nic&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">model&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">e1000&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">enable&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">kvm&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">nographic&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">pidfile&lt;/span> &lt;span class="nx">vm&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">pid&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="mi">2&lt;/span>&lt;span class="o">&amp;gt;&amp;amp;&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="nx">tee&lt;/span> &lt;span class="nx">vm&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">log&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>运行成功：&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image1.png"
+width="1610"
+height="340"
+srcset="https://apowerfulmei.github.io/p/buzzer/image1_hu_c64fa3513f4b3449.png 480w, https://apowerfulmei.github.io/p/buzzer/image1_hu_cc590ccc7896d0df.png 1024w"
+loading="lazy"
+alt="image1.png"
+class="gallery-image"
+data-flex-grow="473"
+data-flex-basis="1136px"
+>&lt;/p>
+&lt;h3 id="23-材料准备">2.3 材料准备
+&lt;/h3>&lt;p>向vm中传输一些必要文件，以及必要的准备&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">传输vmlinux&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="nx">PATH_TO_DEBIAN_IMAGE&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="nx">PATH_TO_KERNEL_REPO&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">vmlinux&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">创建目录&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">mkdir&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">root&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">sourceFiles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">传输verifier&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">c文件&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="nx">PATH_TO_DEBIAN_IMAGE&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="nx">PATH_TO_KERNEL_REPO&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bpf&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">verifier&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">c&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/sourceFiles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">传输buzzer&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="nx">PATH_TO_DEBIAN_IMAGE&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="nx">PATH_TO_BUZZER&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">my&lt;/span> &lt;span class="nx">cmd&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">image&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">vmlinux&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">image&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bpf&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">verifier&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">c&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/sourceFiles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">image&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">home&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">ranma&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">eBPF&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bazel&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">bin&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer_&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="24-buzzer运行">2.4 Buzzer运行
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">strategy&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">pointer_arithmetic&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">直接运行&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer默认使用playground策略&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">没什么实际效果&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>运行效果：&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image2.png"
+width="2224"
+height="593"
+srcset="https://apowerfulmei.github.io/p/buzzer/image2_hu_b27022f4e963322.png 480w, https://apowerfulmei.github.io/p/buzzer/image2_hu_3be5ba14fafb34b4.png 1024w"
+loading="lazy"
+alt="image2.png"
+class="gallery-image"
+data-flex-grow="375"
+data-flex-basis="900px"
+>&lt;/p>
+&lt;h2 id="报错">报错
+&lt;/h2>&lt;h3 id="错误1">错误1
+&lt;/h3>&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image3.png"
+width="2201"
+height="677"
+srcset="https://apowerfulmei.github.io/p/buzzer/image3_hu_2b9dc522df7752cf.png 480w, https://apowerfulmei.github.io/p/buzzer/image3_hu_9000c4ba7595d479.png 1024w"
+loading="lazy"
+alt="image3.png"
+class="gallery-image"
+data-flex-grow="325"
+data-flex-basis="780px"
+>&lt;/p>
+&lt;p>看上去似乎是bazel版本过高带来的问题，安装低版本的7.4.0 bazel即可解决&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">install&lt;/span> &lt;span class="nx">bazel&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">7.4.0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">ln&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">usr&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bin&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bazel&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">7.4.0&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">usr&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bin&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bazel&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="错误2">错误2
+&lt;/h3>&lt;p>传输文件vmlinux遇到qemu空间不足&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image4.png"
+width="2209"
+height="153"
+srcset="https://apowerfulmei.github.io/p/buzzer/image4_hu_1501bbc8aefc5ae.png 480w, https://apowerfulmei.github.io/p/buzzer/image4_hu_e71f66535c93ee56.png 1024w"
+loading="lazy"
+alt="image4.png"
+class="gallery-image"
+data-flex-grow="1443"
+data-flex-basis="3465px"
+>&lt;/p>
+&lt;p>使用create-image.sh创建一个/root空间更大的image，修改SEEK参数，这里改为4G&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image5.png"
+width="509"
+height="236"
+srcset="https://apowerfulmei.github.io/p/buzzer/image5_hu_961b267e10eedfcb.png 480w, https://apowerfulmei.github.io/p/buzzer/image5_hu_24a290aa08177cb1.png 1024w"
+loading="lazy"
+alt="image5.png"
+class="gallery-image"
+data-flex-grow="215"
+data-flex-basis="517px"
+>&lt;/p>
+&lt;h3 id="错误3">错误3
+&lt;/h3>&lt;p>运行./buzzer之后没有反应&lt;/p>
+&lt;p>&lt;a class="link" href="https://github.com/google/buzzer/issues/58" target="_blank" rel="noopener"
+>https://github.com/google/buzzer/issues/58&lt;/a>&lt;/p></description></item><item><title>Lora fine-tuning</title><link>https://apowerfulmei.github.io/p/hello-lora/</link><pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-lora/</guid><description>&lt;h1 id="lora">Lora
+&lt;/h1>&lt;h2 id="原理">原理
+&lt;/h2>&lt;p>冻结原始矩阵，在原始矩阵的基础上添加一个低秩矩阵。&lt;/p>
+&lt;h2 id="微调流程">微调流程
+&lt;/h2>&lt;h2 id="微调后的大模型使用">微调后的大模型使用
+&lt;/h2>&lt;h2 id="参考">参考
+&lt;/h2></description></item><item><title>pwn.college Getting Started</title><link>https://apowerfulmei.github.io/p/hello-pwn.college/</link><pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-pwn.college/</guid><description>&lt;h1 id="pwn-getting-started">PWN Getting Started
+&lt;/h1>&lt;h2 id="1linux-luminarium">&lt;strong>1、Linux Luminarium&lt;/strong>
+&lt;/h2>&lt;h3 id="practicing-piping">&lt;strong>Practicing Piping&lt;/strong>
+&lt;/h3>&lt;h4 id="level8--grepping-errors">Level8 grepping errors
+&lt;/h4>&lt;p>知识点：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;span class="lnt">9
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"># 通过2&amp;gt;$ 1的方式将error输出到标准输出
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/run 2&amp;gt;&amp;amp;1 | grep pwn
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#注意是&amp;amp;符号而不是$
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"># grep的用法
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">grep [pattern] [filepath]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">grep X ./x.txt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="level9--duplicating-piped-data-with-tee">Level9 duplicating piped data with tee
+&lt;/h4>&lt;p>知识点：&lt;/p>
+&lt;p>tee命令的作用：tee命令可以将标准输入的内容导入到标准输出以及多个文件中&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">/challenge/pwn &lt;span class="p">|&lt;/span> tee hint.txt &lt;span class="p">|&lt;/span> /challenge/college
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-pwn.college/image.png"
+width="1559"
+height="298"
+srcset="https://apowerfulmei.github.io/p/hello-pwn.college/image_hu_c0340942ca0f65fb.png 480w, https://apowerfulmei.github.io/p/hello-pwn.college/image_hu_5fb35f931f684a21.png 1024w"
+loading="lazy"
+alt="image.png"
+class="gallery-image"
+data-flex-grow="523"
+data-flex-basis="1255px"
+>&lt;/p>
+&lt;p>随后按照提示的用法，将pwn命令的输出导入给college即可得到flag&lt;/p>
+&lt;h4 id="level11-split-piping-stderr-and-stdout">Level11 split piping stderr and stdout
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">/challenge/hack 2&amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/the&lt;span class="o">)&lt;/span> &lt;span class="p">|&lt;/span> /challenge/planet
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/hack 2&amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/the&lt;span class="o">)&lt;/span> &amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/planet&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/hack 2&amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/the&lt;span class="o">)&lt;/span> 1&amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/planet&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>分流输出stderr与stdout。&lt;/p>
+&lt;ol>
+&lt;li>&lt;code>2&amp;gt; &amp;gt;(...)&lt;/code>：将 stderr（文件描述符 2）重定向到一个子shell，子shell 中运行 &lt;code>/challenge/the&lt;/code> 命令。&lt;/li>
+&lt;li>&lt;code>&amp;gt; &amp;gt;(...)&lt;/code>：将 stdout（文件描述符 1）重定向到一个子shell，子shell 中运行 &lt;code>/challenge/planet&lt;/code> 命令。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>&lt;code>&amp;gt; &amp;gt;()&lt;/code> 和&lt;code>|&lt;/code> 的区别&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>&lt;code>&amp;gt; &amp;gt;()&lt;/code>&lt;/strong>：
+&lt;ul>
+&lt;li>会创建子shell 来处理重定向，可能会稍微影响性能，但在大多数情况下差异不大。&lt;/li>
+&lt;li>适用于需要灵活处理多个输出流的复杂场景。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>&lt;code>|&lt;/code>&lt;/strong>：
+&lt;ul>
+&lt;li>直接在当前 shell 中处理，性能较高。&lt;/li>
+&lt;li>适用于简单的命令链式调用。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="shell-variables">&lt;strong>Shell Variables&lt;/strong>
+&lt;/h3>&lt;p>这一部分的关卡都很简单&lt;/p>
+&lt;p>总结一部分知识点&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 设置变量，这样设置的变量仅对当前shell可见&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">VAR&lt;/span>&lt;span class="o">=&lt;/span>value
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 使用export设置变量，这样设置的变量对当前shell及其子shell都可见&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">export&lt;/span> &lt;span class="nv">VAR&lt;/span>&lt;span class="o">=&lt;/span>value
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 可以使用echo和env查看设置的变量&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">echo&lt;/span> &lt;span class="nv">$VAR&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">env
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 使用$()获取命令的输出&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">VAR&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">$(&lt;/span>cat file&lt;span class="k">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 使用read读取输入&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">read&lt;/span> VAR
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 使用read读取文件&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">read&lt;/span> VAR &amp;lt; file
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="processes-and-jobs">&lt;strong>Processes and Jobs&lt;/strong>
+&lt;/h3>&lt;p>知识点总结&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">Ctrl+Z 暂停
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">fg 启用并转到foreground
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">bg 启用并转到background
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">运行一条命令后，可以使用 echo $? 查看exit code
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="perceiving-permissions">&lt;strong>Perceiving Permissions&lt;/strong>
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">chown 改变文件归属
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">chgrp 改变文件归属组
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">chmod u/g/o/a +/-/= rwx [file]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">chmod u/g/o/a=- [file]直接清除权限
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">chmod u+s [file] 让其他用户以该文件的owner权限接触该文件
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="2computing-101">&lt;strong>2、computing 101&lt;/strong>
+&lt;/h2>&lt;h3 id="your-first-program">Your first program
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-asm" data-lang="asm">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 这一部分主要讲述了汇编代码的编写应用
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">汇编程序保存至&lt;/span>&lt;span class="na">.s文件中&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">使用&lt;/span>&lt;span class="nf">syscall进行系统调用&lt;/span>&lt;span class="err">，系统调用编码保存在&lt;/span>&lt;span class="no">rax中&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">如：&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">mov&lt;/span> &lt;span class="no">rax&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">60&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">syscall&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">调用60号系统调用&lt;/span>&lt;span class="nf">exit&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">使用寄存器进行传参，如&lt;/span>&lt;span class="nf">exit的参数保存在rdi中&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">mov&lt;/span> &lt;span class="no">rdi&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">42&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">mov&lt;/span> &lt;span class="no">rax&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">60&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">syscall&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 编译为可执行文件
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="err">编译前在文件头部加上&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="na">.intel_syntax&lt;/span> &lt;span class="no">noprefix&lt;/span> &lt;span class="err">告知使用的是&lt;/span>&lt;span class="no">Intel汇编编码格式&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">as&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="no">o&lt;/span> &lt;span class="no">asm.o&lt;/span> &lt;span class="no">assemble.s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">ld&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="no">o&lt;/span> &lt;span class="no">exe&lt;/span> &lt;span class="no">asm.o&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># write syscall
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="nf">syscall&lt;/span> &lt;span class="err">编号为&lt;/span>&lt;span class="mi">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">三个参数&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">rdi&lt;/span> &lt;span class="err">要写入的文件描述符&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">rsi&lt;/span> &lt;span class="err">字符串起始地址&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">rdx&lt;/span> &lt;span class="err">字符串长度&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="debugging-refresher">&lt;strong>Debugging Refresher&lt;/strong>
+&lt;/h3>&lt;p>set disassembly-flavor intel 设置为intel格式&lt;/p>
+&lt;p>&lt;strong>level8&lt;/strong>&lt;/p>
+&lt;p>win+12 +20 +24 +33处，[rax]指向的地址为0，为nullptr，会引发segmentation fault&lt;/p>
+&lt;p>因而此处直接跳过错误代码，跳转到win+35进行后续操作即可&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> 0x580e06449951 &amp;lt;win&amp;gt;: endbr64
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449955 &amp;lt;win+4&amp;gt;: push rbp
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449956 &amp;lt;win+5&amp;gt;: mov rbp,rsp
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449959 &amp;lt;win+8&amp;gt;: sub rsp,0x10
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644995d &amp;lt;win+12&amp;gt;: mov QWORD PTR [rbp-0x8],0x0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449965 &amp;lt;win+20&amp;gt;: mov rax,QWORD PTR [rbp-0x8]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449969 &amp;lt;win+24&amp;gt;: mov eax,DWORD PTR [rax]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644996b &amp;lt;win+26&amp;gt;: lea edx,[rax+0x1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644996e &amp;lt;win+29&amp;gt;: mov rax,QWORD PTR [rbp-0x8]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449972 &amp;lt;win+33&amp;gt;: mov DWORD PTR [rax],edx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449974 &amp;lt;win+35&amp;gt;: lea rdi,[rip+0x73e] # 0x580e0644a0b9
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644997b &amp;lt;win+42&amp;gt;: call 0x580e06449180 &amp;lt;puts@plt&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449980 &amp;lt;win+47&amp;gt;: mov esi,0x0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449985 &amp;lt;win+52&amp;gt;: lea rdi,[rip+0x749] # 0x580e0644a0d5
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644998c &amp;lt;win+59&amp;gt;: mov eax,0x0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449991 &amp;lt;win+64&amp;gt;: call 0x580e06449240 &amp;lt;open@plt&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jump *win+35
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> c
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="building-a-web-server">&lt;strong>Building a Web Server&lt;/strong>
+&lt;/h3>&lt;p>正好借这一部分复习一下汇编的知识。这一章一方面是要经常查表，查看各个&lt;a class="link" href="https://www.cnblogs.com/tcctw/p/11450449.html" target="_blank" rel="noopener"
+>系统调用&lt;/a>的用法，另一方面就是考察一些程序设计基本功。题目要求写一个处理GET请求和POST请求的汇编程序。&lt;/p>
+&lt;h4 id="part1">PART1
+&lt;/h4>&lt;p>创建&lt;code>socket&lt;/code>，以及执行&lt;code>listen&lt;/code>，&lt;code>bind&lt;/code>等系统调用，完成一个初始化。调用&lt;code>bind&lt;/code>的时需要在栈内构建一个结构体&lt;code>sockaddr&lt;/code>。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> mov rdi, 2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 41 # create socket
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 24], rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 24], 0 # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 16], 2 # AF_INET (2 bytes)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 14], 0x5000 # Port 80 (network byte order: 0x5000)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov dword ptr [rsp - 12], 0x0000000 # 0.0.0.0 (network byte order: 0x7F000001)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 8], 0 # sin_zero (8 bytes padding
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-16]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 16
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 49 # bind
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 50 # listen
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="part2">PART2
+&lt;/h4>&lt;p>接收request并创建response，使用&lt;code>accept&lt;/code>获取request，从中读出要处理的文件名，将本地的文件内容&lt;code>write&lt;/code>到相关的fd中。
+这里我简单粗暴在栈上开辟了一个超大的空间用于保存request的内容，然后从头遍历，&lt;strong>把文件名的后一个byte写为&lt;code>\0&lt;/code>&lt;/strong>，再把指向文件名的地址传送给系统调用&lt;code>open&lt;/code>即可。&lt;code>accept&lt;/code>会返回一个套接字文件描述符，往里面&lt;code>write&lt;/code>文件内容即可。&lt;/p>
+&lt;h4 id="part3">PART3
+&lt;/h4>&lt;p>对于每一个请求，使用子进程进行处理。&lt;/p>
+&lt;p>这里涉及到系统调用&lt;code>fork&lt;/code>的用法。调用之后，父子进程都将从当前程序的位置往后执行，且父子进程&lt;strong>不共享栈空间&lt;/strong>。在&lt;code>fork&lt;/code>后要加一个判断逻辑，根据fork的返回值判断当前进程是父进程还是子进程，&lt;strong>返回值为0则是子进程，否则为父进程&lt;/strong>。对于父进程，程序进入循环，接收下一个请求，对于子进程，程序处理现在的这个请求。&lt;/p>
+&lt;h4 id="part4">PART4
+&lt;/h4>&lt;p>处理POST请求。POST请求的内容包括要写入的文件名，要写入的内容以及长度。文件头&lt;code>Content-Length&lt;/code>会说明要写入内容的长度。&lt;/p>
+&lt;p>这里要处理两部分的内容，第一是匹配该文件头，第二是读取文件长度。下面的代码是我的处理逻辑。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> # 获取length所处的位置
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 15
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xxx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov cl, byte ptr [rsp-924+rdi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp cl, byte ptr [length+rsi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je xx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp xxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rsi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp rsi,rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne xxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 计算length
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xxxx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 一个字节一个字节读，计算长度
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 如123等于 ((&amp;#39;1&amp;#39;-&amp;#39;0&amp;#39;)*10+(&amp;#39;2&amp;#39;-&amp;#39;0&amp;#39;))*10+(&amp;#39;3&amp;#39;-&amp;#39;0&amp;#39;)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> imul eax, 10
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov cl, byte ptr [rsp - 924+rdi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> sub cl, &amp;#39;0&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rax, rcx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp-924+rdi], &amp;#39;\r&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne xxxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">.section .data
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">msg: .asciz &amp;#34;HTTP/1.0 200 OK\r\n\r\n&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">length: .asciz &amp;#34;Content-Length:&amp;#34;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="完整代码">完整代码
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt"> 10
+&lt;/span>&lt;span class="lnt"> 11
+&lt;/span>&lt;span class="lnt"> 12
+&lt;/span>&lt;span class="lnt"> 13
+&lt;/span>&lt;span class="lnt"> 14
+&lt;/span>&lt;span class="lnt"> 15
+&lt;/span>&lt;span class="lnt"> 16
+&lt;/span>&lt;span class="lnt"> 17
+&lt;/span>&lt;span class="lnt"> 18
+&lt;/span>&lt;span class="lnt"> 19
+&lt;/span>&lt;span class="lnt"> 20
+&lt;/span>&lt;span class="lnt"> 21
+&lt;/span>&lt;span class="lnt"> 22
+&lt;/span>&lt;span class="lnt"> 23
+&lt;/span>&lt;span class="lnt"> 24
+&lt;/span>&lt;span class="lnt"> 25
+&lt;/span>&lt;span class="lnt"> 26
+&lt;/span>&lt;span class="lnt"> 27
+&lt;/span>&lt;span class="lnt"> 28
+&lt;/span>&lt;span class="lnt"> 29
+&lt;/span>&lt;span class="lnt"> 30
+&lt;/span>&lt;span class="lnt"> 31
+&lt;/span>&lt;span class="lnt"> 32
+&lt;/span>&lt;span class="lnt"> 33
+&lt;/span>&lt;span class="lnt"> 34
+&lt;/span>&lt;span class="lnt"> 35
+&lt;/span>&lt;span class="lnt"> 36
+&lt;/span>&lt;span class="lnt"> 37
+&lt;/span>&lt;span class="lnt"> 38
+&lt;/span>&lt;span class="lnt"> 39
+&lt;/span>&lt;span class="lnt"> 40
+&lt;/span>&lt;span class="lnt"> 41
+&lt;/span>&lt;span class="lnt"> 42
+&lt;/span>&lt;span class="lnt"> 43
+&lt;/span>&lt;span class="lnt"> 44
+&lt;/span>&lt;span class="lnt"> 45
+&lt;/span>&lt;span class="lnt"> 46
+&lt;/span>&lt;span class="lnt"> 47
+&lt;/span>&lt;span class="lnt"> 48
+&lt;/span>&lt;span class="lnt"> 49
+&lt;/span>&lt;span class="lnt"> 50
+&lt;/span>&lt;span class="lnt"> 51
+&lt;/span>&lt;span class="lnt"> 52
+&lt;/span>&lt;span class="lnt"> 53
+&lt;/span>&lt;span class="lnt"> 54
+&lt;/span>&lt;span class="lnt"> 55
+&lt;/span>&lt;span class="lnt"> 56
+&lt;/span>&lt;span class="lnt"> 57
+&lt;/span>&lt;span class="lnt"> 58
+&lt;/span>&lt;span class="lnt"> 59
+&lt;/span>&lt;span class="lnt"> 60
+&lt;/span>&lt;span class="lnt"> 61
+&lt;/span>&lt;span class="lnt"> 62
+&lt;/span>&lt;span class="lnt"> 63
+&lt;/span>&lt;span class="lnt"> 64
+&lt;/span>&lt;span class="lnt"> 65
+&lt;/span>&lt;span class="lnt"> 66
+&lt;/span>&lt;span class="lnt"> 67
+&lt;/span>&lt;span class="lnt"> 68
+&lt;/span>&lt;span class="lnt"> 69
+&lt;/span>&lt;span class="lnt"> 70
+&lt;/span>&lt;span class="lnt"> 71
+&lt;/span>&lt;span class="lnt"> 72
+&lt;/span>&lt;span class="lnt"> 73
+&lt;/span>&lt;span class="lnt"> 74
+&lt;/span>&lt;span class="lnt"> 75
+&lt;/span>&lt;span class="lnt"> 76
+&lt;/span>&lt;span class="lnt"> 77
+&lt;/span>&lt;span class="lnt"> 78
+&lt;/span>&lt;span class="lnt"> 79
+&lt;/span>&lt;span class="lnt"> 80
+&lt;/span>&lt;span class="lnt"> 81
+&lt;/span>&lt;span class="lnt"> 82
+&lt;/span>&lt;span class="lnt"> 83
+&lt;/span>&lt;span class="lnt"> 84
+&lt;/span>&lt;span class="lnt"> 85
+&lt;/span>&lt;span class="lnt"> 86
+&lt;/span>&lt;span class="lnt"> 87
+&lt;/span>&lt;span class="lnt"> 88
+&lt;/span>&lt;span class="lnt"> 89
+&lt;/span>&lt;span class="lnt"> 90
+&lt;/span>&lt;span class="lnt"> 91
+&lt;/span>&lt;span class="lnt"> 92
+&lt;/span>&lt;span class="lnt"> 93
+&lt;/span>&lt;span class="lnt"> 94
+&lt;/span>&lt;span class="lnt"> 95
+&lt;/span>&lt;span class="lnt"> 96
+&lt;/span>&lt;span class="lnt"> 97
+&lt;/span>&lt;span class="lnt"> 98
+&lt;/span>&lt;span class="lnt"> 99
+&lt;/span>&lt;span class="lnt">100
+&lt;/span>&lt;span class="lnt">101
+&lt;/span>&lt;span class="lnt">102
+&lt;/span>&lt;span class="lnt">103
+&lt;/span>&lt;span class="lnt">104
+&lt;/span>&lt;span class="lnt">105
+&lt;/span>&lt;span class="lnt">106
+&lt;/span>&lt;span class="lnt">107
+&lt;/span>&lt;span class="lnt">108
+&lt;/span>&lt;span class="lnt">109
+&lt;/span>&lt;span class="lnt">110
+&lt;/span>&lt;span class="lnt">111
+&lt;/span>&lt;span class="lnt">112
+&lt;/span>&lt;span class="lnt">113
+&lt;/span>&lt;span class="lnt">114
+&lt;/span>&lt;span class="lnt">115
+&lt;/span>&lt;span class="lnt">116
+&lt;/span>&lt;span class="lnt">117
+&lt;/span>&lt;span class="lnt">118
+&lt;/span>&lt;span class="lnt">119
+&lt;/span>&lt;span class="lnt">120
+&lt;/span>&lt;span class="lnt">121
+&lt;/span>&lt;span class="lnt">122
+&lt;/span>&lt;span class="lnt">123
+&lt;/span>&lt;span class="lnt">124
+&lt;/span>&lt;span class="lnt">125
+&lt;/span>&lt;span class="lnt">126
+&lt;/span>&lt;span class="lnt">127
+&lt;/span>&lt;span class="lnt">128
+&lt;/span>&lt;span class="lnt">129
+&lt;/span>&lt;span class="lnt">130
+&lt;/span>&lt;span class="lnt">131
+&lt;/span>&lt;span class="lnt">132
+&lt;/span>&lt;span class="lnt">133
+&lt;/span>&lt;span class="lnt">134
+&lt;/span>&lt;span class="lnt">135
+&lt;/span>&lt;span class="lnt">136
+&lt;/span>&lt;span class="lnt">137
+&lt;/span>&lt;span class="lnt">138
+&lt;/span>&lt;span class="lnt">139
+&lt;/span>&lt;span class="lnt">140
+&lt;/span>&lt;span class="lnt">141
+&lt;/span>&lt;span class="lnt">142
+&lt;/span>&lt;span class="lnt">143
+&lt;/span>&lt;span class="lnt">144
+&lt;/span>&lt;span class="lnt">145
+&lt;/span>&lt;span class="lnt">146
+&lt;/span>&lt;span class="lnt">147
+&lt;/span>&lt;span class="lnt">148
+&lt;/span>&lt;span class="lnt">149
+&lt;/span>&lt;span class="lnt">150
+&lt;/span>&lt;span class="lnt">151
+&lt;/span>&lt;span class="lnt">152
+&lt;/span>&lt;span class="lnt">153
+&lt;/span>&lt;span class="lnt">154
+&lt;/span>&lt;span class="lnt">155
+&lt;/span>&lt;span class="lnt">156
+&lt;/span>&lt;span class="lnt">157
+&lt;/span>&lt;span class="lnt">158
+&lt;/span>&lt;span class="lnt">159
+&lt;/span>&lt;span class="lnt">160
+&lt;/span>&lt;span class="lnt">161
+&lt;/span>&lt;span class="lnt">162
+&lt;/span>&lt;span class="lnt">163
+&lt;/span>&lt;span class="lnt">164
+&lt;/span>&lt;span class="lnt">165
+&lt;/span>&lt;span class="lnt">166
+&lt;/span>&lt;span class="lnt">167
+&lt;/span>&lt;span class="lnt">168
+&lt;/span>&lt;span class="lnt">169
+&lt;/span>&lt;span class="lnt">170
+&lt;/span>&lt;span class="lnt">171
+&lt;/span>&lt;span class="lnt">172
+&lt;/span>&lt;span class="lnt">173
+&lt;/span>&lt;span class="lnt">174
+&lt;/span>&lt;span class="lnt">175
+&lt;/span>&lt;span class="lnt">176
+&lt;/span>&lt;span class="lnt">177
+&lt;/span>&lt;span class="lnt">178
+&lt;/span>&lt;span class="lnt">179
+&lt;/span>&lt;span class="lnt">180
+&lt;/span>&lt;span class="lnt">181
+&lt;/span>&lt;span class="lnt">182
+&lt;/span>&lt;span class="lnt">183
+&lt;/span>&lt;span class="lnt">184
+&lt;/span>&lt;span class="lnt">185
+&lt;/span>&lt;span class="lnt">186
+&lt;/span>&lt;span class="lnt">187
+&lt;/span>&lt;span class="lnt">188
+&lt;/span>&lt;span class="lnt">189
+&lt;/span>&lt;span class="lnt">190
+&lt;/span>&lt;span class="lnt">191
+&lt;/span>&lt;span class="lnt">192
+&lt;/span>&lt;span class="lnt">193
+&lt;/span>&lt;span class="lnt">194
+&lt;/span>&lt;span class="lnt">195
+&lt;/span>&lt;span class="lnt">196
+&lt;/span>&lt;span class="lnt">197
+&lt;/span>&lt;span class="lnt">198
+&lt;/span>&lt;span class="lnt">199
+&lt;/span>&lt;span class="lnt">200
+&lt;/span>&lt;span class="lnt">201
+&lt;/span>&lt;span class="lnt">202
+&lt;/span>&lt;span class="lnt">203
+&lt;/span>&lt;span class="lnt">204
+&lt;/span>&lt;span class="lnt">205
+&lt;/span>&lt;span class="lnt">206
+&lt;/span>&lt;span class="lnt">207
+&lt;/span>&lt;span class="lnt">208
+&lt;/span>&lt;span class="lnt">209
+&lt;/span>&lt;span class="lnt">210
+&lt;/span>&lt;span class="lnt">211
+&lt;/span>&lt;span class="lnt">212
+&lt;/span>&lt;span class="lnt">213
+&lt;/span>&lt;span class="lnt">214
+&lt;/span>&lt;span class="lnt">215
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">.intel_syntax noprefix
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">.globl _start
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">.section .text
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">_start:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 24], 0 # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 16], 2 # AF_INET (2 bytes)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 14], 0x5000 # Port 80 (network byte order: 0x5000)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov dword ptr [rsp - 12], 0x0000000 # 127.0.0.1 (network byte order: 0x7F000001)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 8], 0 # sin_zero (8 bytes padding
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, 2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 41 # create socket
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 将文件描述符保存在栈上
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 24], rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-16]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 16
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 49 # bind
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 50 # listen
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 324], 0 # 保存文件内容
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 924], 0 # 保存读取的request
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 932], 0 # 备用
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 940], 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">handle:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0 # use 0 to represent NULL
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 43 # accept
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rbx, rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 57 # fork
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 这里需要判断当前进程是子进程还是主进程
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je child
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp handle
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">child:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-924]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 600
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # read
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp - 924], &amp;#39;G&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je handle_get
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp - 924], &amp;#39;P&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je handle_post
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp _end
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">handle_post:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 截取file name
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax,0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">loop1:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp-919+rax], &amp;#39; &amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne loop1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov byte ptr [rsp-919+rax], 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 获取length所处的位置
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 15
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xxx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov cl, byte ptr [rsp-924+rdi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp cl, byte ptr [length+rsi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je xx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp xxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rsi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp rsi,rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne xxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 计算length
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xxxx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> imul eax, 10
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov cl, byte ptr [rsp - 924+rdi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> sub cl, &amp;#39;0&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rax, rcx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp-924+rdi], &amp;#39;\r&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne xxxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 获取到了长度存储在rax中
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 932], rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 940], rdi
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # open file
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rdi, [rsp - 919]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0x41
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 0777
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, [rsp - 940]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rcx, 4
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-924+rcx]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, [rsp - 932]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # write
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [msg]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 19
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # write msg
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp _end
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">handle_get:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 截取file name
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax,0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">loop2:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp-920+rax], &amp;#39; &amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne loop2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov byte ptr [rsp-920+rax], 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"># 根据GET或者POST选择不同的策略
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # open file
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rdi, [rsp - 920]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 16
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # read file
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-324]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 300
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp-932], rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [msg]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 19
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # write
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-324]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, [rsp-932]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # write
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">_end:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 60 # SYS_exit
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">.section .data
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">msg: .asciz &amp;#34;HTTP/1.0 200 OK\r\n\r\n&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">length: .asciz &amp;#34;Content-Length:&amp;#34;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item><item><title>Syz-repro</title><link>https://apowerfulmei.github.io/p/syz-repro/</link><pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/syz-repro/</guid><description>&lt;h1 id="syz-repro分析">Syz-Repro分析
+&lt;/h1>&lt;p>&lt;a class="link" href="https://github.com/google/syzkaller/blob/master/tools/syz-repro/repro.go" target="_blank" rel="noopener"
+>syzkaller/tools/syz-repro/repro.go at master · google/syzkaller&lt;/a>&lt;/p>
+&lt;h2 id="syz-repro的使用">syz-repro的使用
+&lt;/h2>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">./bin/syz-repro -config=my.cfg /path/to/crash/log
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>使用syz-repro对log中包含的prog进行复现，这个流程包括&lt;/p>
+&lt;p>1、提取出可以触发crash的初始prog&lt;/p>
+&lt;p>2、对这个prog进行简化，基本采用的是逐个syscall削减简化&lt;/p>
+&lt;p>3、对prog的参数等进行简化&lt;/p>
+&lt;p>4、将prog转化为C poc&lt;/p>
+&lt;p>5、对C poc进行简化&lt;/p>
+&lt;h2 id="程序最小化">程序最小化
+&lt;/h2>&lt;p>pkg/repro/repro.go Run runInner reproCtx.run()&lt;/p>
+&lt;p>minimizeProg对extract出来的程序进行minimize，在这之中调用prog.Minimize进行简化&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Minimize calls and arguments.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="nx">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">reproContext&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">minimizeProg&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">res&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">Result&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">Result&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">error&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">reproLogf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;minimizing guilty program&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">start&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Now&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">defer&lt;/span> &lt;span class="nx">func&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">stats&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MinimizeProgTime&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Since&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">start&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">mode&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MinimizeCrash&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">fast&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">mode&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MinimizeCallsOnly&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minimize&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mode&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex&lt;/span> &lt;span class="kr">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">bool&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// We do want to keep at least one call, otherwise tools/syz-execprog
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// will immediately exit.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="kc">false&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ret&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">testProg&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Duration&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Opts&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">false&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="nx">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">reproLogf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;minimization failed with %v&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="kc">false&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">ret&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Crashed&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">})&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">res&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">nil&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里会调用prog中的Minimize函数对程序进行简化&lt;/p>
+&lt;p>包含的参数：&lt;/p>
+&lt;p>1、prog 程序列表&lt;/p>
+&lt;p>2、index 开始简化的syscall下标&lt;/p>
+&lt;p>3、mode 简化模式&lt;/p>
+&lt;p>4、pred 测试函数，这个函数会对简化后的程序进行测试，观察其能否触发Bug&lt;/p>
+&lt;p>prog minimization.go中&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">Minimize函数中调用removeCalls进行简化&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">移除不必要的&lt;/span> &lt;span class="nx">syscall&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">removeCalls&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pred&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">func&lt;/span> &lt;span class="nx">removeCalls&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="kr">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pred&lt;/span> &lt;span class="nx">minimizePred&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kr">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mi">2&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// It&amp;#39;s frequently the case that all subsequent calls were not necessary.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// Try to drop them all at once.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="nx">p&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Clone&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="o">--&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">RemoveCall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">pred&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">statMinRemoveCall&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;trailing calls&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">removeUnrelatedCalls&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pred&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">//这里可以看到是逐个syscall尝试进行移除的
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="o">--&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">continue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">callIndex0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="nx">callIndex&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex&lt;/span>&lt;span class="o">--&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Clone&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">RemoveCall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="o">!&lt;/span>&lt;span class="nx">pred&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">statMinRemoveCall&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Sprintf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;call %v&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">continue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">callIndex&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="对crash-log的处理">对crash log的处理
+&lt;/h2>&lt;p>log里面存放的内容：&lt;/p>
+&lt;p>1、minimize之前的prog&lt;/p>
+&lt;p>2、minimize这个过程的prog，以及是否crashed&lt;/p>
+&lt;p>3、C程序的生成以及minimize&lt;/p>
+&lt;p>minimize的方式&lt;/p>
+&lt;p>prog/minimization.go Minimize对程序进行minimize处理&lt;/p>
+&lt;p>处理log的方式&lt;/p>
+&lt;p>prog/parse.go ParseLog对log文件进行处理&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">函数&lt;/span> &lt;span class="sb">`ParseLog`&lt;/span> &lt;span class="nx">处理日志的方式如下&lt;/span>&lt;span class="err">：&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">1.&lt;/span> &lt;span class="nx">初始化一个&lt;/span> &lt;span class="sb">`LogEntry`&lt;/span> &lt;span class="nx">结构体和一些变量&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">2.&lt;/span> &lt;span class="nx">通过循环逐行读取日志数据&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">3.&lt;/span> &lt;span class="nx">如果行中包含&lt;/span> &lt;span class="s2">&amp;#34;executing program &amp;#34;&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">则解析并创建一个新的&lt;/span> &lt;span class="sb">`LogEntry`&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">4.&lt;/span> &lt;span class="nx">将当前行追加到&lt;/span> &lt;span class="sb">`cur`&lt;/span> &lt;span class="nx">中&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">并尝试反序列化为程序&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">5.&lt;/span> &lt;span class="nx">如果反序列化成功并且存在故障调用&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">则设置相应的故障属性&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">6.&lt;/span> &lt;span class="nx">最后&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">将所有解析的&lt;/span> &lt;span class="sb">`LogEntry`&lt;/span> &lt;span class="nx">返回&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="log处理">Log处理
+&lt;/h2>&lt;p>可以只在log里面放一个最原始的未简化的prog&lt;/p>
+&lt;p>后面程序会先尝试复现这个prog，并且会记录所有相关的时间&lt;/p>
+&lt;p>实验测试结果&lt;/p>
+&lt;h2 id="结果保存">结果保存
+&lt;/h2>&lt;p>复现的结果保存到相关的文件里。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> fmt.Printf(&amp;#34;opts: %+v crepro: %v\n\n&amp;#34;, res.Opts, res.CRepro)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //将程序序列化，写入相关文件
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> progSerialized := res.Prog.Serialize()
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> fmt.Printf(&amp;#34;%s\n&amp;#34;, progSerialized)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if err = osutil.WriteFile(*flagOutput, progSerialized); err == nil {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> fmt.Printf(&amp;#34;program saved to %s\n&amp;#34;, *flagOutput)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> } else {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> log.Logf(0, &amp;#34;failed to write prog to file: %v&amp;#34;, err)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if res.Report != nil &amp;amp;&amp;amp; *flagTitle != &amp;#34;&amp;#34; {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> recordTitle(res, *flagTitle)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if res.CRepro {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> recordCRepro(res, *flagCRepro)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if *flagStrace != &amp;#34;&amp;#34; {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> result := repro.RunStrace(res, cfg, reporter, pool)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> recordStraceResult(result, *flagStrace)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item><item><title>Hello World</title><link>https://apowerfulmei.github.io/p/hello-world/</link><pubDate>Sun, 06 Mar 2022 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-world/</guid><description>&lt;img src="https://apowerfulmei.github.io/p/hello-world/cover.jpg" alt="Featured image of post Hello World" />&lt;p>Welcome to Hugo theme Stack. This is your first post. Edit or delete it, then start writing!&lt;/p>
+&lt;p>For more information about this theme, check the documentation: &lt;a class="link" href="https://stack.jimmycai.com/" target="_blank" rel="noopener"
+>https://stack.jimmycai.com/&lt;/a>&lt;/p>
+&lt;p>This is apowerfulmei!!!&lt;/p>
+&lt;p>Want a site like this? Check out &lt;a class="link" href="https://github.com/CaiJimmy/hugo-theme-stack-starter" target="_blank" rel="noopener"
+>hugo-theme-stack-stater&lt;/a>&lt;/p>
+&lt;blockquote>
+&lt;p>Photo by &lt;a class="link" href="https://unsplash.com/@pawel_czerwinski" target="_blank" rel="noopener"
+>Pawel Czerwinski&lt;/a> on &lt;a class="link" href="https://unsplash.com/" target="_blank" rel="noopener"
+>Unsplash&lt;/a>&lt;/p>&lt;/blockquote></description></item><item><title>Markdown Syntax Guide</title><link>https://apowerfulmei.github.io/p/markdown-syntax-guide/</link><pubDate>Thu, 07 Sep 2023 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/markdown-syntax-guide/</guid><description>&lt;p>This article offers a sample of basic Markdown syntax that can be used in Hugo content files, also it shows whether basic HTML elements are decorated with CSS in a Hugo theme.&lt;/p>
+&lt;h2 id="headings">Headings
+&lt;/h2>&lt;p>The following HTML &lt;code>&amp;lt;h1&amp;gt;&lt;/code>—&lt;code>&amp;lt;h6&amp;gt;&lt;/code> elements represent six levels of section headings. &lt;code>&amp;lt;h1&amp;gt;&lt;/code> is the highest section level while &lt;code>&amp;lt;h6&amp;gt;&lt;/code> is the lowest.&lt;/p>
+&lt;h1 id="h1">H1
+&lt;/h1>&lt;h2 id="h2">H2
+&lt;/h2>&lt;h3 id="h3">H3
+&lt;/h3>&lt;h4 id="h4">H4
+&lt;/h4>&lt;h5 id="h5">H5
+&lt;/h5>&lt;h6 id="h6">H6
+&lt;/h6>&lt;h2 id="paragraph">Paragraph
+&lt;/h2>&lt;p>Xerum, quo qui aut unt expliquam qui dolut labo. Aque venitatiusda cum, voluptionse latur sitiae dolessi aut parist aut dollo enim qui voluptate ma dolestendit peritin re plis aut quas inctum laceat est volestemque commosa as cus endigna tectur, offic to cor sequas etum rerum idem sintibus eiur? Quianimin porecus evelectur, cum que nis nust voloribus ratem aut omnimi, sitatur? Quiatem. Nam, omnis sum am facea corem alique molestrunt et eos evelece arcillit ut aut eos eos nus, sin conecerem erum fuga. Ri oditatquam, ad quibus unda veliamenimin cusam et facea ipsamus es exerum sitate dolores editium rerore eost, temped molorro ratiae volorro te reribus dolorer sperchicium faceata tiustia prat.&lt;/p>
+&lt;p>Itatur? Quiatae cullecum rem ent aut odis in re eossequodi nonsequ idebis ne sapicia is sinveli squiatum, core et que aut hariosam ex eat.&lt;/p>
+&lt;h2 id="blockquotes">Blockquotes
+&lt;/h2>&lt;p>The blockquote element represents content that is quoted from another source, optionally with a citation which must be within a &lt;code>footer&lt;/code> or &lt;code>cite&lt;/code> element, and optionally with in-line changes such as annotations and abbreviations.&lt;/p>
+&lt;h3 id="blockquote-without-attribution">Blockquote without attribution
+&lt;/h3>&lt;blockquote>
+&lt;p>Tiam, ad mint andaepu dandae nostion secatur sequo quae.
+&lt;strong>Note&lt;/strong> that you can use &lt;em>Markdown syntax&lt;/em> within a blockquote.&lt;/p>&lt;/blockquote>
+&lt;h3 id="blockquote-with-attribution">Blockquote with attribution
+&lt;/h3>&lt;blockquote>
+&lt;p>Don&amp;rsquo;t communicate by sharing memory, share memory by communicating.&lt;br>
+— &lt;cite>Rob Pike&lt;sup id="fnref:1">&lt;a href="#fn:1" class="footnote-ref" role="doc-noteref">1&lt;/a>&lt;/sup>&lt;/cite>&lt;/p>&lt;/blockquote>
+&lt;h2 id="tables">Tables
+&lt;/h2>&lt;p>Tables aren&amp;rsquo;t part of the core Markdown spec, but Hugo supports supports them out-of-the-box.&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Name&lt;/th>
+&lt;th>Age&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Bob&lt;/td>
+&lt;td>27&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>Alice&lt;/td>
+&lt;td>23&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h3 id="inline-markdown-within-tables">Inline Markdown within tables
+&lt;/h3>&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>Italics&lt;/th>
+&lt;th>Bold&lt;/th>
+&lt;th>Code&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>&lt;em>italics&lt;/em>&lt;/td>
+&lt;td>&lt;strong>bold&lt;/strong>&lt;/td>
+&lt;td>&lt;code>code&lt;/code>&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>A&lt;/th>
+&lt;th>B&lt;/th>
+&lt;th>C&lt;/th>
+&lt;th>D&lt;/th>
+&lt;th>E&lt;/th>
+&lt;th>F&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>Lorem ipsum dolor sit amet, consectetur adipiscing elit.&lt;/td>
+&lt;td>Phasellus ultricies, sapien non euismod aliquam, dui ligula tincidunt odio, at accumsan nulla sapien eget ex.&lt;/td>
+&lt;td>Proin eleifend dictum ipsum, non euismod ipsum pulvinar et. Vivamus sollicitudin, quam in pulvinar aliquam, metus elit pretium purus&lt;/td>
+&lt;td>Proin sit amet velit nec enim imperdiet vehicula.&lt;/td>
+&lt;td>Ut bibendum vestibulum quam, eu egestas turpis gravida nec&lt;/td>
+&lt;td>Sed scelerisque nec turpis vel viverra. Vivamus vitae pretium sapien&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;h2 id="code-blocks">Code Blocks
+&lt;/h2>&lt;h3 id="code-block-with-backticks">Code block with backticks
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-html" data-lang="html">&lt;span class="line">&lt;span class="cl">&lt;span class="cp">&amp;lt;!doctype html&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nt">html&lt;/span> &lt;span class="na">lang&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s">&amp;#34;en&amp;#34;&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nt">head&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nt">meta&lt;/span> &lt;span class="na">charset&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s">&amp;#34;utf-8&amp;#34;&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nt">title&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>Example HTML5 Document&lt;span class="p">&amp;lt;/&lt;/span>&lt;span class="nt">title&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">&amp;lt;/&lt;/span>&lt;span class="nt">head&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nt">body&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nt">p&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>Test&lt;span class="p">&amp;lt;/&lt;/span>&lt;span class="nt">p&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">&amp;lt;/&lt;/span>&lt;span class="nt">body&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">&amp;lt;/&lt;/span>&lt;span class="nt">html&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="code-block-indented-with-four-spaces">Code block indented with four spaces
+&lt;/h3>&lt;pre>&lt;code>&amp;lt;!doctype html&amp;gt;
+&amp;lt;html lang=&amp;quot;en&amp;quot;&amp;gt;
+&amp;lt;head&amp;gt;
+&amp;lt;meta charset=&amp;quot;utf-8&amp;quot;&amp;gt;
+&amp;lt;title&amp;gt;Example HTML5 Document&amp;lt;/title&amp;gt;
+&amp;lt;/head&amp;gt;
+&amp;lt;body&amp;gt;
+&amp;lt;p&amp;gt;Test&amp;lt;/p&amp;gt;
+&amp;lt;/body&amp;gt;
+&amp;lt;/html&amp;gt;
+&lt;/code>&lt;/pre>
+&lt;h3 id="diff-code-block">Diff code block
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-diff" data-lang="diff">&lt;span class="line">&lt;span class="cl">[dependencies.bevy]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">git = &amp;#34;https://github.com/bevyengine/bevy&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">rev = &amp;#34;11f52b8c72fc3a568e8bb4a4cd1f3eb025ac2e13&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="gd">- features = [&amp;#34;dynamic&amp;#34;]
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="gd">&lt;/span>&lt;span class="gi">+ features = [&amp;#34;jpeg&amp;#34;, &amp;#34;dynamic&amp;#34;]
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="one-line-code-block">One line code block
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-html" data-lang="html">&lt;span class="line">&lt;span class="cl">&lt;span class="p">&amp;lt;&lt;/span>&lt;span class="nt">p&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>A paragraph&lt;span class="p">&amp;lt;/&lt;/span>&lt;span class="nt">p&lt;/span>&lt;span class="p">&amp;gt;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="list-types">List Types
+&lt;/h2>&lt;h3 id="ordered-list">Ordered List
+&lt;/h3>&lt;ol>
+&lt;li>First item&lt;/li>
+&lt;li>Second item&lt;/li>
+&lt;li>Third item&lt;/li>
+&lt;/ol>
+&lt;h3 id="unordered-list">Unordered List
+&lt;/h3>&lt;ul>
+&lt;li>List item&lt;/li>
+&lt;li>Another item&lt;/li>
+&lt;li>And another item&lt;/li>
+&lt;/ul>
+&lt;h3 id="nested-list">Nested list
+&lt;/h3>&lt;ul>
+&lt;li>Fruit
+&lt;ul>
+&lt;li>Apple&lt;/li>
+&lt;li>Orange&lt;/li>
+&lt;li>Banana&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>Dairy
+&lt;ul>
+&lt;li>Milk&lt;/li>
+&lt;li>Cheese&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h2 id="other-elements--abbr-sub-sup-kbd-mark">Other Elements — abbr, sub, sup, kbd, mark
+&lt;/h2>&lt;p>&lt;abbr title="Graphics Interchange Format">GIF&lt;/abbr> is a bitmap image format.&lt;/p>
+&lt;p>H&lt;sub>2&lt;/sub>O&lt;/p>
+&lt;p>X&lt;sup>n&lt;/sup> + Y&lt;sup>n&lt;/sup> = Z&lt;sup>n&lt;/sup>&lt;/p>
+&lt;p>Press &lt;kbd>CTRL&lt;/kbd> + &lt;kbd>ALT&lt;/kbd> + &lt;kbd>Delete&lt;/kbd> to end the session.&lt;/p>
+&lt;p>Most &lt;mark>salamanders&lt;/mark> are nocturnal, and hunt for insects, worms, and other small creatures.&lt;/p>
+&lt;div class="footnotes" role="doc-endnotes">
+&lt;hr>
+&lt;ol>
+&lt;li id="fn:1">
+&lt;p>The above quote is excerpted from Rob Pike&amp;rsquo;s &lt;a class="link" href="https://www.youtube.com/watch?v=PAAkCSZUG1c" target="_blank" rel="noopener"
+>talk&lt;/a> during Gopherfest, November 18, 2015.&amp;#160;&lt;a href="#fnref:1" class="footnote-backref" role="doc-backlink">&amp;#x21a9;&amp;#xfe0e;&lt;/a>&lt;/p>
+&lt;/li>
+&lt;/ol>
+&lt;/div></description></item><item><title>Image gallery</title><link>https://apowerfulmei.github.io/p/image-gallery/</link><pubDate>Sat, 26 Aug 2023 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/image-gallery/</guid><description>&lt;img src="https://apowerfulmei.github.io/p/image-gallery/2.jpg" alt="Featured image of post Image gallery" />&lt;p>Hugo theme Stack supports the creation of interactive image galleries using Markdown. It&amp;rsquo;s powered by &lt;a class="link" href="https://photoswipe.com/" target="_blank" rel="noopener"
+>PhotoSwipe&lt;/a> and its syntax was inspired by &lt;a class="link" href="https://typlog.com/" target="_blank" rel="noopener"
+>Typlog&lt;/a>.&lt;/p>
+&lt;p>To use this feature, the image must be in the same directory as the Markdown file, as it uses Hugo&amp;rsquo;s page bundle feature to read the dimensions of the image. &lt;strong>External images are not supported.&lt;/strong>&lt;/p>
+&lt;h2 id="syntax">Syntax
+&lt;/h2>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-markdown" data-lang="markdown">&lt;span class="line">&lt;span class="cl">![&lt;span class="nt">Image 1&lt;/span>](&lt;span class="na">1.jpg&lt;/span>) ![&lt;span class="nt">Image 2&lt;/span>](&lt;span class="na">2.jpg&lt;/span>)
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="result">Result
+&lt;/h2>&lt;p>&lt;img src="https://apowerfulmei.github.io/p/image-gallery/1.jpg"
+width="2000"
+height="1400"
+srcset="https://apowerfulmei.github.io/p/image-gallery/1_hu_811b671457ffff1f.jpg 480w, https://apowerfulmei.github.io/p/image-gallery/1_hu_c74af69dd7c1dcda.jpg 1024w"
+loading="lazy"
+alt="Image 1"
+class="gallery-image"
+data-flex-grow="142"
+data-flex-basis="342px"
+> &lt;img src="https://apowerfulmei.github.io/p/image-gallery/2.jpg"
+width="1500"
+height="2250"
+srcset="https://apowerfulmei.github.io/p/image-gallery/2_hu_42f6436cb1637265.jpg 480w, https://apowerfulmei.github.io/p/image-gallery/2_hu_27862a49608da0d9.jpg 1024w"
+loading="lazy"
+alt="Image 2"
+class="gallery-image"
+data-flex-grow="66"
+data-flex-basis="160px"
+>&lt;/p>
+&lt;blockquote>
+&lt;p>Photo by &lt;a class="link" href="https://unsplash.com/@mymind" target="_blank" rel="noopener"
+>mymind&lt;/a> and &lt;a class="link" href="https://unsplash.com/@lukechesser" target="_blank" rel="noopener"
+>Luke Chesser&lt;/a> on &lt;a class="link" href="https://unsplash.com/" target="_blank" rel="noopener"
+>Unsplash&lt;/a>&lt;/p>&lt;/blockquote></description></item><item><title>Shortcodes</title><link>https://apowerfulmei.github.io/p/shortcodes/</link><pubDate>Fri, 25 Aug 2023 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/shortcodes/</guid><description>&lt;img src="https://apowerfulmei.github.io/p/shortcodes/cover.jpg" alt="Featured image of post Shortcodes" />&lt;p>For more details, check out the &lt;a class="link" href="https://stack.jimmycai.com/writing/shortcodes" target="_blank" rel="noopener"
+>documentation&lt;/a>.&lt;/p>
+&lt;h2 id="bilibili-video">Bilibili video
+&lt;/h2>
+&lt;div class="video-wrapper">
+&lt;iframe src="https://player.bilibili.com/player.html?as_wide=1&amp;amp;high_quality=1&amp;amp;page=1&amp;bvid=BV1d4411N7zD"
+scrolling="no"
+frameborder="no"
+framespacing="0"
+allowfullscreen="true"
+>
+&lt;/iframe>
+&lt;/div>
+&lt;h2 id="tencent-video">Tencent video
+&lt;/h2>
+&lt;div class="video-wrapper">
+&lt;iframe src="https://v.qq.com/txp/iframe/player.html?vid=g0014r3khdw&amp;auto=0"
+scrolling="no"
+frameborder="no"
+framespacing="0"
+allowfullscreen="true"
+>
+&lt;/iframe>
+&lt;/div>
+&lt;h2 id="youtube-video">YouTube video
+&lt;/h2>&lt;div class="video-wrapper">
+&lt;iframe loading="lazy"
+src="https://www.youtube.com/embed/0qwALOOvUik"
+allowfullscreen
+title="YouTube Video"
+>
+&lt;/iframe>
+&lt;/div>
+&lt;h2 id="generic-video-file">Generic video file
+&lt;/h2>&lt;div class="video-wrapper">
+&lt;video
+controls
+src="https://www.w3schools.com/tags/movie.mp4"
+>
+&lt;p>
+Your browser doesn't support HTML5 video. Here is a
+&lt;a href="https://www.w3schools.com/tags/movie.mp4">link to the video&lt;/a> instead.
+&lt;/p>
+&lt;/video>
+&lt;/div>
+&lt;h2 id="gist">Gist
+&lt;/h2>&lt;script src="https://gist.github.com/CaiJimmy/e2751a943de10b2a5b3a8a6c2120cb86.js">&lt;/script>
+&lt;h2 id="gitlab">GitLab
+&lt;/h2>&lt;script
+type="application/javascript"
+src="https://gitlab.com/-/snippets/2589724.js"
+>&lt;/script>
+&lt;h2 id="quote">Quote
+&lt;/h2>&lt;blockquote>
+&lt;p>Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.&lt;/p>&lt;span class="cite">&lt;span>― &lt;/span>&lt;span>A famous person, &lt;/span>&lt;a href="https://en.wikipedia.org/wiki/Book">&lt;cite>The book they wrote&lt;/cite>&lt;/a>&lt;/span>&lt;/blockquote>
+&lt;hr>
+&lt;blockquote>
+&lt;p>Photo by &lt;a class="link" href="https://unsplash.com/@codioful" target="_blank" rel="noopener"
+>Codioful&lt;/a> on &lt;a class="link" href="https://unsplash.com/photos/WDSN62Qdxuk" target="_blank" rel="noopener"
+>Unsplash&lt;/a>&lt;/p>&lt;/blockquote></description></item><item><title>Math Typesetting</title><link>https://apowerfulmei.github.io/p/math-typesetting/</link><pubDate>Thu, 24 Aug 2023 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/math-typesetting/</guid><description>&lt;p>Stack has built-in support for math typesetting using &lt;a class="link" href="https://katex.org/" target="_blank" rel="noopener"
+>KaTeX&lt;/a>.&lt;/p>
+&lt;p>&lt;strong>It&amp;rsquo;s not enabled by default side-wide,&lt;/strong> but you can enable it for individual posts by adding &lt;code>math: true&lt;/code> to the front matter. Or you can enable it side-wide by adding &lt;code>math = true&lt;/code> to the &lt;code>params.article&lt;/code> section in &lt;code>config.toml&lt;/code>.&lt;/p>
+&lt;h2 id="inline-math">Inline math
+&lt;/h2>&lt;p>This is an inline mathematical expression: $\varphi = \dfrac{1+\sqrt5}{2}= 1.6180339887…$&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-markdown" data-lang="markdown">&lt;span class="line">&lt;span class="cl">$\varphi = \dfrac{1+\sqrt5}{2}= 1.6180339887…$
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="block-math">Block math
+&lt;/h2>$$
+\varphi = 1+\frac{1} {1+\frac{1} {1+\frac{1} {1+\cdots} } }
+$$&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-markdown" data-lang="markdown">&lt;span class="line">&lt;span class="cl">$$
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> \varphi = 1+\frac{1} {1+\frac{1} {1+\frac{1} {1+\cdots} } }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">$$
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>$$
+f(x) = \int_{-\infty}^\infty\hat f(\xi)\,e^{2 \pi i \xi x}\,d\xi
+$$&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-markdown" data-lang="markdown">&lt;span class="line">&lt;span class="cl">$$
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> f(x) = \int_{-\infty}^\infty\hat f(\xi)\,e^{2 \pi i \xi x}\,d\xi
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">$$
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item></channel></rss>
