@@ -69,6 +69,39 @@ tee命令的作用：tee命令可以将标准输入的内容导入到标准输�
     - 直接在当前 shell 中处理，性能较高。
     - 适用于简单的命令链式调用。
 
+### **Data Manipulation**
+
+这一章的关卡也挺简单的，首先是命令`tr`的使用方法，总结一些必要的知识点。
+
+```shell
+# 1、替换字符串，将字符串中的abc替换为ABC，第一关就是交换一下大小写
+tr abc ABC 
+/challenge/run | tr ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+
+# 2、删除字符，使用-d标签
+tr -d %^
+/challenge/run | tr -d ^%
+
+# 3、删除特殊字符\n，这一关提到了一个知识点，\字符要用\\表示
+/challenge/run | tr -d "\n"
+
+```
+
+然后是`head`的使用，这些命令虽然简单，但是遗忘掉用法也很容易，还是得记录一下。
+
+```shell
+# 4、使用head -n num输出前num行的内容
+/challenge/pwn | head -n 7 | /challenge/college 
+```
+
+最后是命令`cut`的使用。这条命令简单来说就是从列提取内容。
+
+```shell
+# 5、cut的-d参数用于指出分隔符，-f则指出具体提取哪一列的内容
+/challenge/run | cut -d " " -f 2 | tr -d "\n"
+
+```
+
 ### **Shell Variables**
 
 这一部分的关卡都很简单
@@ -500,3 +533,81 @@ msg: .asciz "HTTP/1.0 200 OK\r\n\r\n"
 length: .asciz "Content-Length:"
 
 ```
+
+## **Playing With Programs**
+
+### Program Misuse
+
+这一关讲述了用各种命令获取flag。
+
+cat、more、less、tail、head、vim、emacs、nano，这些命令都可以直接读取。
+
+这里面，我对`emacs`确实稍微没那么了解，使用也很少，它其实也是一种文本编辑器。
+
+紧随其后的其他命令就没那么直接了。
+
+#### rev
+
+`rev`命令，其实就是`reverse`，它会把文件内容倒着输出，**每一行内容都反向输出**。那么我们要做的就是将flag反向输出的内容保存到一个文件里，再反向输出一次，就可以得到flag了。
+
+```
+/challenge/rev /flag > ./galf
+/challenge/rev ./galf
+```
+
+#### od
+
+od命令，全称为`octal dump`。是Linux中用于以八进制和其他格式（如十六进制、十进制和ASCII）显示文件内容的工具。这个命令在查看通常不易读的文件，如编译过的二进制文件时非常有用。
+
+常用选项
+
++ -b：以单字节八进制显示文件内容。
+
++ -c：以ASCII字符显示文件内容。
+
++ -x：将输入转换为十六进制格式。
+
++ -d：将输入转换为十进制格式。
+
++ -j：跳过文件的初始字节数。
+
++ -N：限制输出的字节数。
+
++ -w：自定义输出的宽度。
+
++ -v：输出重复的值。
+
+```
+/challenge/od -c /flag
+```
+
+### SQL
+
+这一章的内容主要讲述了sql的基础语法。这里我只总结一部分有意思的内容。
+
+1、`substr`的用法
+
+包含三个参数：目标字符串，起始（需要注意的是，sql字符串的第一个字符下标为1），长度。
+
+```
+select text from table where substr(text,1,3)="pwn"
+
+```
+
+2、`sqlite_master`表
+
+在SQLite数据库中，`sqlite_master`是一个存储数据库元信息的特殊表，它会在每个SQLite数据库创建时自动生成。这个表包含了数据库中所有其他表、索引、触发器和视图的描述信息。
+
+这个表包含的字段有：
+
++ type: 记录项目的类型，如table、index、view、trigger。
+
++ name: 记录项目的名称，如表名、索引名等。
+
++ tbl_name: 记录所从属的表名，对于表来说，该列就是表名本身。
+
++ rootpage: 记录项目在数据库页中存储的编号。对于视图和触发器，该列值为0或者NULL。
+
++ sql: 记录创建该项目的SQL语句。
+
+SQL的语法我从一开始进入大学学习计算机时就有接触，但是没有什么很高深的应用，只是做一些简单的增删改查以及数据库的管理。但是在安全领域以及数据库落地，SQL的使用还是很重要的。如**SQL注入**，以及**高效mysql**。
