@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Syzkaller on apowerfulmei</title><link>https://apowerfulmei.github.io/tags/syzkaller/</link><description>Recent content in Syzkaller on apowerfulmei</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 29 May 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://apowerfulmei.github.io/tags/syzkaller/index.xml" rel="self" type="application/rss+xml"/><item><title>Syz-repro</title><link>https://apowerfulmei.github.io/p/syz-repro/</link><pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/syz-repro/</guid><description>&lt;h1 id="syz-repro分析">Syz-Repro分析
+&lt;/h1>&lt;p>&lt;a class="link" href="https://github.com/google/syzkaller/blob/master/tools/syz-repro/repro.go" target="_blank" rel="noopener"
+>syzkaller/tools/syz-repro/repro.go at master · google/syzkaller&lt;/a>&lt;/p>
+&lt;h2 id="syz-repro的使用">syz-repro的使用
+&lt;/h2>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">./bin/syz-repro -config=my.cfg /path/to/crash/log
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>使用syz-repro对log中包含的prog进行复现，这个流程包括&lt;/p>
+&lt;p>1、提取出可以触发crash的初始prog&lt;/p>
+&lt;p>2、对这个prog进行简化，基本采用的是逐个syscall削减简化&lt;/p>
+&lt;p>3、对prog的参数等进行简化&lt;/p>
+&lt;p>4、将prog转化为C poc&lt;/p>
+&lt;p>5、对C poc进行简化&lt;/p>
+&lt;h2 id="程序最小化">程序最小化
+&lt;/h2>&lt;p>pkg/repro/repro.go Run runInner reproCtx.run()&lt;/p>
+&lt;p>minimizeProg对extract出来的程序进行minimize，在这之中调用prog.Minimize进行简化&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Minimize calls and arguments.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="nx">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">reproContext&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">minimizeProg&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">res&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">Result&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">Result&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">error&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">reproLogf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;minimizing guilty program&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">start&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Now&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">defer&lt;/span> &lt;span class="nx">func&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">stats&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MinimizeProgTime&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Since&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">start&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">mode&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MinimizeCrash&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">fast&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">mode&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MinimizeCallsOnly&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minimize&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mode&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex&lt;/span> &lt;span class="kr">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">bool&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// We do want to keep at least one call, otherwise tools/syz-execprog
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// will immediately exit.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="kc">false&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ret&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">testProg&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Duration&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Opts&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">false&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="nx">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">reproLogf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;minimization failed with %v&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="kc">false&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">ret&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Crashed&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">})&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">res&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">nil&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里会调用prog中的Minimize函数对程序进行简化&lt;/p>
+&lt;p>包含的参数：&lt;/p>
+&lt;p>1、prog 程序列表&lt;/p>
+&lt;p>2、index 开始简化的syscall下标&lt;/p>
+&lt;p>3、mode 简化模式&lt;/p>
+&lt;p>4、pred 测试函数，这个函数会对简化后的程序进行测试，观察其能否触发Bug&lt;/p>
+&lt;p>prog minimization.go中&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">Minimize函数中调用removeCalls进行简化&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">移除不必要的&lt;/span> &lt;span class="nx">syscall&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">removeCalls&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pred&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">func&lt;/span> &lt;span class="nx">removeCalls&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="kr">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pred&lt;/span> &lt;span class="nx">minimizePred&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kr">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mi">2&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// It&amp;#39;s frequently the case that all subsequent calls were not necessary.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// Try to drop them all at once.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="nx">p&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Clone&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="o">--&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">RemoveCall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">pred&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">statMinRemoveCall&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;trailing calls&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">removeUnrelatedCalls&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pred&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">//这里可以看到是逐个syscall尝试进行移除的
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="o">--&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">continue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">callIndex0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="nx">callIndex&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex&lt;/span>&lt;span class="o">--&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Clone&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">RemoveCall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="o">!&lt;/span>&lt;span class="nx">pred&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">statMinRemoveCall&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Sprintf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;call %v&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">continue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">callIndex&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="对crash-log的处理">对crash log的处理
+&lt;/h2>&lt;p>log里面存放的内容：&lt;/p>
+&lt;p>1、minimize之前的prog&lt;/p>
+&lt;p>2、minimize这个过程的prog，以及是否crashed&lt;/p>
+&lt;p>3、C程序的生成以及minimize&lt;/p>
+&lt;p>minimize的方式&lt;/p>
+&lt;p>prog/minimization.go Minimize对程序进行minimize处理&lt;/p>
+&lt;p>处理log的方式&lt;/p>
+&lt;p>prog/parse.go ParseLog对log文件进行处理&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">函数&lt;/span> &lt;span class="sb">`ParseLog`&lt;/span> &lt;span class="nx">处理日志的方式如下&lt;/span>&lt;span class="err">：&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">1.&lt;/span> &lt;span class="nx">初始化一个&lt;/span> &lt;span class="sb">`LogEntry`&lt;/span> &lt;span class="nx">结构体和一些变量&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">2.&lt;/span> &lt;span class="nx">通过循环逐行读取日志数据&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">3.&lt;/span> &lt;span class="nx">如果行中包含&lt;/span> &lt;span class="s2">&amp;#34;executing program &amp;#34;&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">则解析并创建一个新的&lt;/span> &lt;span class="sb">`LogEntry`&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">4.&lt;/span> &lt;span class="nx">将当前行追加到&lt;/span> &lt;span class="sb">`cur`&lt;/span> &lt;span class="nx">中&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">并尝试反序列化为程序&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">5.&lt;/span> &lt;span class="nx">如果反序列化成功并且存在故障调用&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">则设置相应的故障属性&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">6.&lt;/span> &lt;span class="nx">最后&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">将所有解析的&lt;/span> &lt;span class="sb">`LogEntry`&lt;/span> &lt;span class="nx">返回&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="log处理">Log处理
+&lt;/h2>&lt;p>可以只在log里面放一个最原始的未简化的prog&lt;/p>
+&lt;p>后面程序会先尝试复现这个prog，并且会记录所有相关的时间&lt;/p>
+&lt;p>实验测试结果&lt;/p>
+&lt;h2 id="结果保存">结果保存
+&lt;/h2>&lt;p>复现的结果保存到相关的文件里。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> fmt.Printf(&amp;#34;opts: %+v crepro: %v\n\n&amp;#34;, res.Opts, res.CRepro)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //将程序序列化，写入相关文件
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> progSerialized := res.Prog.Serialize()
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> fmt.Printf(&amp;#34;%s\n&amp;#34;, progSerialized)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if err = osutil.WriteFile(*flagOutput, progSerialized); err == nil {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> fmt.Printf(&amp;#34;program saved to %s\n&amp;#34;, *flagOutput)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> } else {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> log.Logf(0, &amp;#34;failed to write prog to file: %v&amp;#34;, err)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if res.Report != nil &amp;amp;&amp;amp; *flagTitle != &amp;#34;&amp;#34; {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> recordTitle(res, *flagTitle)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if res.CRepro {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> recordCRepro(res, *flagCRepro)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if *flagStrace != &amp;#34;&amp;#34; {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> result := repro.RunStrace(res, cfg, reporter, pool)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> recordStraceResult(result, *flagStrace)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item></channel></rss>

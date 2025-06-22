@@ -1,0 +1,338 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>LLM on apowerfulmei</title><link>https://apowerfulmei.github.io/categories/llm/</link><description>Recent content in LLM on apowerfulmei</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Tue, 10 Jun 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://apowerfulmei.github.io/categories/llm/index.xml" rel="self" type="application/rss+xml"/><item><title>调用本地大模型进行predict</title><link>https://apowerfulmei.github.io/p/hello-local-llm-predict/</link><pubDate>Tue, 10 Jun 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-local-llm-predict/</guid><description>&lt;h1 id="本地大模型调用">本地大模型调用
+&lt;/h1>&lt;p>最近用Lora微调了一个小模型，生成一些小程序，记录一下我是怎么在本地部署使用的。&lt;/p>
+&lt;h2 id="实验环境">实验环境
+&lt;/h2>&lt;p>A800 80G GPU
+Qwen3 1.7b&lt;/p>
+&lt;h2 id="使用模型进行推理">使用模型进行推理
+&lt;/h2>&lt;p>大模型部署好以后，怎么调用大模型进行推理工作呢？整个流程可以分为4步：&lt;/p>
+&lt;ul>
+&lt;li>初始化&lt;/li>
+&lt;li>构建输入&lt;/li>
+&lt;li>大模型生成&lt;/li>
+&lt;li>解析输出&lt;/li>
+&lt;/ul>
+&lt;h3 id="初始化">初始化
+&lt;/h3>&lt;p>在这一步，我们将加载本地大模型和分词器，使用Hugging Face的&lt;code>from_pretrained&lt;/code>函数。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">model&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoModelForCausalLM&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;./Qwen&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">device_map&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;auto&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">trust_remote_code&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">tokenizer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;./Qwen&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="构建输入">构建输入
+&lt;/h3>&lt;p>在这一步，我们构建prompt作为输入，首先构造一个基础的消息文本。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">messages&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;system&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">prompt&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;user&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">prompt_u&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>然后用分词器构造template，将文字文本转化为大模型可以处理的输入格式。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">apply_chat_template&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">messages&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">tokenize&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">add_generation_prompt&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">enable_thinking&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model_inputs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">return_tensors&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;pt&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>看看model_inputs直接打印出来输出的内容。&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-local-llm-predict/input_ids.png"
+width="1432"
+height="484"
+srcset="https://apowerfulmei.github.io/p/hello-local-llm-predict/input_ids_hu_5aca08fef658bdc9.png 480w, https://apowerfulmei.github.io/p/hello-local-llm-predict/input_ids_hu_6f748edef6e5bf25.png 1024w"
+loading="lazy"
+alt="input_id"
+class="gallery-image"
+data-flex-grow="295"
+data-flex-basis="710px"
+>&lt;/p>
+&lt;p>可以看到分词器将文字转化为了模型可理解的数字序列，每个数字对应分词器词汇表中的一个词/子词。&lt;/p>
+&lt;p>&lt;code>tokenize=False&lt;/code>参数会让函数以文本的形式输出结果，否则将以id的形式输出结果。&lt;/p>
+&lt;p>&lt;code>add_generation_prompt=True&lt;/code>会在输出的结果中增加一个assistant的操作，这里我们将text以文本的形式打印出来看看。
+&lt;img src="https://apowerfulmei.github.io/p/hello-local-llm-predict/assistant.png"
+width="514"
+height="216"
+srcset="https://apowerfulmei.github.io/p/hello-local-llm-predict/assistant_hu_2c42730e23df5259.png 480w, https://apowerfulmei.github.io/p/hello-local-llm-predict/assistant_hu_65930f6dbd88f2fb.png 1024w"
+loading="lazy"
+alt="assistant"
+class="gallery-image"
+data-flex-grow="237"
+data-flex-basis="571px"
+>&lt;/p>
+&lt;p>&lt;code>enable_thinking&lt;/code>则是决定是否要启动大模型的思考模式，启动以后会延长思考时间，这里我直接关闭了。&lt;/p>
+&lt;h3 id="使用模型进行推理-1">使用模型进行推理
+&lt;/h3>&lt;p>这一步，我们将上一步得到的输入传递给大模型进行推理，得到推理结果。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="n">generated_ids&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">generate&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">model_inputs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">max_new_tokens&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">MAX_LENGTH&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">temperature&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1.0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里输出的generated_ids也是以id的形式展现的，要使用tokenizer将其转换为自认语言。&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-local-llm-predict/generate.png"
+width="1034"
+height="150"
+srcset="https://apowerfulmei.github.io/p/hello-local-llm-predict/generate_hu_a248b6755d24b56.png 480w, https://apowerfulmei.github.io/p/hello-local-llm-predict/generate_hu_6d8023a1f354fd1f.png 1024w"
+loading="lazy"
+alt="generate_id"
+class="gallery-image"
+data-flex-grow="689"
+data-flex-basis="1654px"
+>&lt;/p>
+&lt;h3 id="解析输出">解析输出
+&lt;/h3>&lt;p>这一步，我们将大模型的输出解码，转为自然语言。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">generated_ids = [
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> output_ids[len(input_ids):] for input_ids, output_ids in zip(model_inputs.input_ids, generated_ids)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">response = tokenizer.batch_decode(generated_ids, skip_special_tokens=True)[0]
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="推理加速">推理加速
+&lt;/h2>&lt;p>跑着跑着，我就发现一些不对劲了，怎么生成速率这么慢？我统计了大模型进行10次推理任务所需的时间，生成一个1500 token长度的程序得花上&lt;strong>37s&lt;/strong>，这对吗？&lt;/p>
+&lt;p>这不对，要知道我用的是个小模型，结果速度还不如网页大模型。&lt;/p>
+&lt;p>后面找到了一些加速的方法，请容我细细道来。&lt;/p>
+&lt;h3 id="增大-batch-size">增大 batch size
+&lt;/h3>&lt;p>简单来说就是在tokenizer中添加多个请求内容，让大模型同时处理，生成多个response。最大化GPU计算单元利用率​。这个过程很像&lt;strong>并发&lt;/strong>。&lt;/p>
+&lt;h3 id="使用多个gpu">使用多个GPU
+&lt;/h3>&lt;p>这自然就没什么好说的。&lt;/p>
+&lt;h2 id="完整程序代码">完整程序代码
+&lt;/h2>&lt;h3 id="初始版本">初始版本
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;span class="lnt">39
+&lt;/span>&lt;span class="lnt">40
+&lt;/span>&lt;span class="lnt">41
+&lt;/span>&lt;span class="lnt">42
+&lt;/span>&lt;span class="lnt">43
+&lt;/span>&lt;span class="lnt">44
+&lt;/span>&lt;span class="lnt">45
+&lt;/span>&lt;span class="lnt">46
+&lt;/span>&lt;span class="lnt">47
+&lt;/span>&lt;span class="lnt">48
+&lt;/span>&lt;span class="lnt">49
+&lt;/span>&lt;span class="lnt">50
+&lt;/span>&lt;span class="lnt">51
+&lt;/span>&lt;span class="lnt">52
+&lt;/span>&lt;span class="lnt">53
+&lt;/span>&lt;span class="lnt">54
+&lt;/span>&lt;span class="lnt">55
+&lt;/span>&lt;span class="lnt">56
+&lt;/span>&lt;span class="lnt">57
+&lt;/span>&lt;span class="lnt">58
+&lt;/span>&lt;span class="lnt">59
+&lt;/span>&lt;span class="lnt">60
+&lt;/span>&lt;span class="lnt">61
+&lt;/span>&lt;span class="lnt">62
+&lt;/span>&lt;span class="lnt">63
+&lt;/span>&lt;span class="lnt">64
+&lt;/span>&lt;span class="lnt">65
+&lt;/span>&lt;span class="lnt">66
+&lt;/span>&lt;span class="lnt">67
+&lt;/span>&lt;span class="lnt">68
+&lt;/span>&lt;span class="lnt">69
+&lt;/span>&lt;span class="lnt">70
+&lt;/span>&lt;span class="lnt">71
+&lt;/span>&lt;span class="lnt">72
+&lt;/span>&lt;span class="lnt">73
+&lt;/span>&lt;span class="lnt">74
+&lt;/span>&lt;span class="lnt">75
+&lt;/span>&lt;span class="lnt">76
+&lt;/span>&lt;span class="lnt">77
+&lt;/span>&lt;span class="lnt">78
+&lt;/span>&lt;span class="lnt">79
+&lt;/span>&lt;span class="lnt">80
+&lt;/span>&lt;span class="lnt">81
+&lt;/span>&lt;span class="lnt">82
+&lt;/span>&lt;span class="lnt">83
+&lt;/span>&lt;span class="lnt">84
+&lt;/span>&lt;span class="lnt">85
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">transformers&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">AutoModelForCausalLM&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">BitsAndBytesConfig&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">from&lt;/span> &lt;span class="nn">peft&lt;/span> &lt;span class="kn">import&lt;/span> &lt;span class="n">LoraConfig&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">get_peft_model&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">PeftModel&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">torch&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">random&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">time&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoModelForCausalLM&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s2">&amp;#34;./Qwen&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">device_map&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;auto&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">trust_remote_code&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">peft_config&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">LoraConfig&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">task_type&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;CAUSAL_LM&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">inference_mode&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">r&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">8&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">lora_alpha&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">32&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">lora_dropout&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">0.1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">target_modules&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="s2">&amp;#34;q_proj&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;v_proj&amp;#34;&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">model&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">PeftModel&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;lora_adapter10-30&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;load peft&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">tokenizer&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">AutoTokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">from_pretrained&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;./Qwen&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">prompt&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;your system prompt&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">prompt_u&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;your user prompt&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">MAX_LENGTH&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">1500&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">def&lt;/span> &lt;span class="nf">predict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">messages&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">device&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="s2">&amp;#34;cuda&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">apply_chat_template&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">messages&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">tokenize&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">add_generation_prompt&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">enable_thinking&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">False&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">model_inputs&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="p">([&lt;/span>&lt;span class="n">text&lt;/span>&lt;span class="p">],&lt;/span> &lt;span class="n">return_tensors&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;pt&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">to&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">ones&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_inputs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">shape&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">dtype&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">torch&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">long&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="n">device&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;cuda&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">generated_ids&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">generate&lt;/span>&lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">model_inputs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">attention_mask&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">attention_mask&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">max_new_tokens&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">MAX_LENGTH&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">temperature&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">1.0&lt;/span>&lt;span class="p">,&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">generated_ids&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">output_ids&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="p">):]&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="n">input_ids&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">output_ids&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">zip&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">model_inputs&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">input_ids&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">generated_ids&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">batch_decode&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">generated_ids&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">skip_special_tokens&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="kc">True&lt;/span>&lt;span class="p">)[&lt;/span>&lt;span class="mi">0&lt;/span>&lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="n">response&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">save_dir&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="s2">&amp;#34;./seeds/&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="n">total&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mi">0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">for&lt;/span> &lt;span class="n">i&lt;/span> &lt;span class="ow">in&lt;/span> &lt;span class="nb">range&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">start_time&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">time&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">time&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">messages&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">[&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;system&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">prompt&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">},&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">{&lt;/span>&lt;span class="s2">&amp;#34;role&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="s2">&amp;#34;user&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;content&amp;#34;&lt;/span>&lt;span class="p">:&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">prompt_u&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">format&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">num&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">random&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">randint&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">5&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">40&lt;/span>&lt;span class="p">))&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">]&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">response&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">predict&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">messages&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">model&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">tokenizer&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">end_time&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="n">time&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">time&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">total&lt;/span> &lt;span class="o">+=&lt;/span> &lt;span class="n">end_time&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">start_time&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;Generation time: &lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">end_time&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="n">start_time&lt;/span>&lt;span class="si">:&lt;/span>&lt;span class="s2">.2f&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2"> seconds&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">response_text&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&amp;#34;&amp;#34;
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> LLM:&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="s2"> &amp;#34;&amp;#34;&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response_text&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">file&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">save_dir&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">seed_&lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">i&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2">.txt&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">with&lt;/span> &lt;span class="nb">open&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">file&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;w&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">f&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">f&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">write&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="n">response&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">print&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="sa">f&lt;/span>&lt;span class="s2">&amp;#34;average generation time: &lt;/span>&lt;span class="si">{&lt;/span>&lt;span class="n">total&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="mi">10&lt;/span>&lt;span class="si">:&lt;/span>&lt;span class="s2">.2f&lt;/span>&lt;span class="si">}&lt;/span>&lt;span class="s2"> seconds&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="参考">参考
+&lt;/h2></description></item><item><title>Lora fine-tuning</title><link>https://apowerfulmei.github.io/p/hello-lora/</link><pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-lora/</guid><description>&lt;h1 id="lora">Lora
+&lt;/h1>&lt;h2 id="原理">原理
+&lt;/h2>&lt;p>冻结原始矩阵，在原始矩阵的基础上添加一个低秩矩阵。&lt;/p>
+&lt;h2 id="微调流程">微调流程
+&lt;/h2>&lt;h2 id="微调后的大模型使用">微调后的大模型使用
+&lt;/h2>&lt;h2 id="参考">参考
+&lt;/h2></description></item></channel></rss>

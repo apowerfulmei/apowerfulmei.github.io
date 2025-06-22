@@ -1,0 +1,1198 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>PWN on apowerfulmei</title><link>https://apowerfulmei.github.io/tags/pwn/</link><description>Recent content in PWN on apowerfulmei</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Thu, 29 May 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://apowerfulmei.github.io/tags/pwn/index.xml" rel="self" type="application/rss+xml"/><item><title>pwn.college Getting Started</title><link>https://apowerfulmei.github.io/p/hello-pwn.college/</link><pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-pwn.college/</guid><description>&lt;h1 id="pwn-getting-started">PWN Getting Started
+&lt;/h1>&lt;h2 id="1linux-luminarium">&lt;strong>1、Linux Luminarium&lt;/strong>
+&lt;/h2>&lt;h3 id="practicing-piping">&lt;strong>Practicing Piping&lt;/strong>
+&lt;/h3>&lt;h4 id="level8--grepping-errors">Level8 grepping errors
+&lt;/h4>&lt;p>知识点：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;span class="lnt">9
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"># 通过2&amp;gt;$ 1的方式将error输出到标准输出
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/run 2&amp;gt;&amp;amp;1 | grep pwn
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">#注意是&amp;amp;符号而不是$
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"># grep的用法
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">grep [pattern] [filepath]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">grep X ./x.txt
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="level9--duplicating-piped-data-with-tee">Level9 duplicating piped data with tee
+&lt;/h4>&lt;p>知识点：&lt;/p>
+&lt;p>tee命令的作用：tee命令可以将标准输入的内容导入到标准输出以及多个文件中&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">/challenge/pwn &lt;span class="p">|&lt;/span> tee hint.txt &lt;span class="p">|&lt;/span> /challenge/college
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-pwn.college/image.png"
+width="1559"
+height="298"
+srcset="https://apowerfulmei.github.io/p/hello-pwn.college/image_hu_c0340942ca0f65fb.png 480w, https://apowerfulmei.github.io/p/hello-pwn.college/image_hu_5fb35f931f684a21.png 1024w"
+loading="lazy"
+alt="image.png"
+class="gallery-image"
+data-flex-grow="523"
+data-flex-basis="1255px"
+>&lt;/p>
+&lt;p>随后按照提示的用法，将pwn命令的输出导入给college即可得到flag&lt;/p>
+&lt;h4 id="level11-split-piping-stderr-and-stdout">Level11 split piping stderr and stdout
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">/challenge/hack 2&amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/the&lt;span class="o">)&lt;/span> &lt;span class="p">|&lt;/span> /challenge/planet
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/hack 2&amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/the&lt;span class="o">)&lt;/span> &amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/planet&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/hack 2&amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/the&lt;span class="o">)&lt;/span> 1&amp;gt; &amp;gt;&lt;span class="o">(&lt;/span>/challenge/planet&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>分流输出stderr与stdout。&lt;/p>
+&lt;ol>
+&lt;li>&lt;code>2&amp;gt; &amp;gt;(...)&lt;/code>：将 stderr（文件描述符 2）重定向到一个子shell，子shell 中运行 &lt;code>/challenge/the&lt;/code> 命令。&lt;/li>
+&lt;li>&lt;code>&amp;gt; &amp;gt;(...)&lt;/code>：将 stdout（文件描述符 1）重定向到一个子shell，子shell 中运行 &lt;code>/challenge/planet&lt;/code> 命令。&lt;/li>
+&lt;/ol>
+&lt;p>&lt;strong>&lt;code>&amp;gt; &amp;gt;()&lt;/code> 和&lt;code>|&lt;/code> 的区别&lt;/strong>&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>&lt;code>&amp;gt; &amp;gt;()&lt;/code>&lt;/strong>：
+&lt;ul>
+&lt;li>会创建子shell 来处理重定向，可能会稍微影响性能，但在大多数情况下差异不大。&lt;/li>
+&lt;li>适用于需要灵活处理多个输出流的复杂场景。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>&lt;code>|&lt;/code>&lt;/strong>：
+&lt;ul>
+&lt;li>直接在当前 shell 中处理，性能较高。&lt;/li>
+&lt;li>适用于简单的命令链式调用。&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="data-manipulation">&lt;strong>Data Manipulation&lt;/strong>
+&lt;/h3>&lt;p>这一章的关卡也挺简单的，首先是命令&lt;code>tr&lt;/code>的使用方法，总结一些必要的知识点。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 1、替换字符串，将字符串中的abc替换为ABC，第一关就是交换一下大小写&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">tr abc ABC
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/run &lt;span class="p">|&lt;/span> tr ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 2、删除字符，使用-d标签&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">tr -d %^
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/run &lt;span class="p">|&lt;/span> tr -d ^%
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 3、删除特殊字符\n，这一关提到了一个知识点，\字符要用\\表示&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/run &lt;span class="p">|&lt;/span> tr -d &lt;span class="s2">&amp;#34;\n&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>然后是&lt;code>head&lt;/code>的使用，这些命令虽然简单，但是遗忘掉用法也很容易，还是得记录一下。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 4、使用head -n num输出前num行的内容&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/pwn &lt;span class="p">|&lt;/span> head -n &lt;span class="m">7&lt;/span> &lt;span class="p">|&lt;/span> /challenge/college
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>最后是命令&lt;code>cut&lt;/code>的使用。这条命令简单来说就是从列提取内容。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 5、cut的-d参数用于指出分隔符，-f则指出具体提取哪一列的内容&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/run &lt;span class="p">|&lt;/span> cut -d &lt;span class="s2">&amp;#34; &amp;#34;&lt;/span> -f &lt;span class="m">2&lt;/span> &lt;span class="p">|&lt;/span> tr -d &lt;span class="s2">&amp;#34;\n&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="shell-variables">&lt;strong>Shell Variables&lt;/strong>
+&lt;/h3>&lt;p>这一部分的关卡都很简单&lt;/p>
+&lt;p>总结一部分知识点&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-shell" data-lang="shell">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 设置变量，这样设置的变量仅对当前shell可见&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">VAR&lt;/span>&lt;span class="o">=&lt;/span>value
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 使用export设置变量，这样设置的变量对当前shell及其子shell都可见&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">export&lt;/span> &lt;span class="nv">VAR&lt;/span>&lt;span class="o">=&lt;/span>value
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 可以使用echo和env查看设置的变量&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">echo&lt;/span> &lt;span class="nv">$VAR&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">env
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 使用$()获取命令的输出&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nv">VAR&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="k">$(&lt;/span>cat file&lt;span class="k">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 使用read读取输入&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">read&lt;/span> VAR
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 使用read读取文件&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nb">read&lt;/span> VAR &amp;lt; file
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="processes-and-jobs">&lt;strong>Processes and Jobs&lt;/strong>
+&lt;/h3>&lt;p>知识点总结&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">Ctrl+Z 暂停
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">fg 启用并转到foreground
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">bg 启用并转到background
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">运行一条命令后，可以使用 echo $? 查看exit code
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="perceiving-permissions">&lt;strong>Perceiving Permissions&lt;/strong>
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">chown 改变文件归属
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">chgrp 改变文件归属组
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">chmod u/g/o/a +/-/= rwx [file]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">chmod u/g/o/a=- [file]直接清除权限
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">chmod u+s [file] 让其他用户以该文件的owner权限接触该文件
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="silly-shenanigans">&lt;strong>Silly Shenanigans&lt;/strong>
+&lt;/h3>&lt;p>1、Bashrc Backdoor&lt;/p>
+&lt;p>.bashrc中的命令会在启动时被执行，可以用作一些恶意行为。&lt;/p>
+&lt;p>2、Sniffing Input&lt;/p>
+&lt;p>这一关的通关思路是修改&lt;code>/home/zardus/.bashrc&lt;/code>，在其目录下创建一个flag_checker，将该脚本的路径加入到PATH，使zardus执行flag_checker时执行的是该目录下的脚本，读取并打印flag。&lt;/p>
+&lt;p>修改.bashrc如下：&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-pwn.college/bashrc.png"
+width="1572"
+height="602"
+srcset="https://apowerfulmei.github.io/p/hello-pwn.college/bashrc_hu_18cb862a54b83284.png 480w, https://apowerfulmei.github.io/p/hello-pwn.college/bashrc_hu_d884c17177c74a6a.png 1024w"
+loading="lazy"
+alt="bashrc"
+class="gallery-image"
+data-flex-grow="261"
+data-flex-basis="626px"
+>&lt;/p>
+&lt;p>3、Overshared Directories&lt;/p>
+&lt;p>这一关用我上一关的方法也可以成功读取flag。&lt;/p>
+&lt;p>4、Trikey Linking&lt;/p>
+&lt;p>这一关，zardus会向&lt;code>/tmp/collab/evil-commnands.txt&lt;/code>中写入读取flag的命令，我们可以建立一个evil-commands.txt到.bashrc的链接，让zardus将命令写入.bashrc，从而读取flag。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">rm /tmp/collab/evil-commands.txt
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">ln /home/zardus/.bashrc /tmp/collab/evil-commands.txt
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/victim
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/victim
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>5、Sniffing Process Arguments&lt;/p>
+&lt;p>这一关很简单，通过&lt;code>ps -aux&lt;/code>查看zardus的进程及其涉及到的密码，登录并读取flag。&lt;/p>
+&lt;p>6、Snooping on configurations&lt;/p>
+&lt;p>这一关也很简单，它主要就是为了告诉我们用户的.bashrc对于其他用户是默认可读的。我们通过查看.bashrc获取key就可以。&lt;/p>
+&lt;h3 id="daring-destruction">&lt;strong>Daring Destruction&lt;/strong>
+&lt;/h3>&lt;p>1、The Fork Bomb&lt;/p>
+&lt;p>这一关编写一个脚本，不停地执行fork操作，直到系统资源被耗尽。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">os&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">while&lt;/span> &lt;span class="kc">True&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">os&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">system&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;python3 test.py &amp;amp;&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">/challenge/check
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">python3 test.py
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>不过这一关让我比较好奇的是，如果仅仅是执行&lt;code>python3 test.py&lt;/code>，系统资源并不会被耗尽，而&lt;code>python3 test.py &amp;amp;&lt;/code>这种background进程，则会很快消耗掉资源，这是为什么？&lt;/p>
+&lt;p>原因也很简单，加上了&lt;code>&amp;amp;&lt;/code>之后，进程会变为非阻塞式，程序会不断运行，而去掉之后，则会等待命令执行完毕之后再执行后面的命令，因为不会带来很大的开销。&lt;/p>
+&lt;p>2、Disk-Space DoomsDay&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">yes &amp;gt; ./x.txt
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/check
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">rm ./x.txt
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challengr/check
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>3、rm -rf /&lt;/p>
+&lt;p>阅读/challenge/check：
+&lt;img src="https://apowerfulmei.github.io/p/hello-pwn.college/check.png"
+width="1916"
+height="590"
+srcset="https://apowerfulmei.github.io/p/hello-pwn.college/check_hu_e6844dc822650c76.png 480w, https://apowerfulmei.github.io/p/hello-pwn.college/check_hu_c3abea5828ea44a3.png 1024w"
+loading="lazy"
+alt="check"
+class="gallery-image"
+data-flex-grow="324"
+data-flex-basis="779px"
+>&lt;/p>
+&lt;p>当根目录下的文件被删到一定程度时就会打印flag内容。&lt;/p>
+&lt;p>这一关开启两个terminal，一个执行&lt;code>/challenge/check&lt;/code>，另一个执行&lt;code>rm -rf --no-preserve-root /&lt;/code>，等待一段时间后，check就会打印flag。&lt;/p>
+&lt;p>4、Life after rm -rf /&lt;/p>
+&lt;p>这一关和上一关类似，但是&lt;code>/challenge/check&lt;/code>不会直接打印/flag，而是在检测到条件满足后，将flag的值再次保存到新的/flag中。&lt;/p>
+&lt;p>然而使用了&lt;code>rm -rf /&lt;/code>之后，cat已经无法使用，这时候只能使用buildin内置命令，比如使用&lt;code>read&lt;/code>读取文件。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">read x &amp;lt; /flag
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">$x
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>5、Finding meaning after rm -rf /&lt;/p>
+&lt;p>这一关和上一关的不同之处在于，flag会被保存为一个随机的名称，然而ls命令此时已经不可用，我们可以用echo读取出文件名。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">echo /*
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="2computing-101">&lt;strong>2、computing 101&lt;/strong>
+&lt;/h2>&lt;h3 id="your-first-program">Your first program
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-asm" data-lang="asm">&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 这一部分主要讲述了汇编代码的编写应用
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">汇编程序保存至&lt;/span>&lt;span class="na">.s文件中&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">使用&lt;/span>&lt;span class="nf">syscall进行系统调用&lt;/span>&lt;span class="err">，系统调用编码保存在&lt;/span>&lt;span class="no">rax中&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">如：&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">mov&lt;/span> &lt;span class="no">rax&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">60&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">syscall&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">调用60号系统调用&lt;/span>&lt;span class="nf">exit&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">使用寄存器进行传参，如&lt;/span>&lt;span class="nf">exit的参数保存在rdi中&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">mov&lt;/span> &lt;span class="no">rdi&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">42&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">mov&lt;/span> &lt;span class="no">rax&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="mi">60&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">syscall&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># 编译为可执行文件
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="err">编译前在文件头部加上&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="na">.intel_syntax&lt;/span> &lt;span class="no">noprefix&lt;/span> &lt;span class="err">告知使用的是&lt;/span>&lt;span class="no">Intel汇编编码格式&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">as&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="no">o&lt;/span> &lt;span class="no">asm.o&lt;/span> &lt;span class="no">assemble.s&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">ld&lt;/span> &lt;span class="p">-&lt;/span>&lt;span class="no">o&lt;/span> &lt;span class="no">exe&lt;/span> &lt;span class="no">asm.o&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># write syscall
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="nf">syscall&lt;/span> &lt;span class="err">编号为&lt;/span>&lt;span class="mi">1&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">三个参数&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">rdi&lt;/span> &lt;span class="err">要写入的文件描述符&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">rsi&lt;/span> &lt;span class="err">字符串起始地址&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nf">rdx&lt;/span> &lt;span class="err">字符串长度&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="debugging-refresher">&lt;strong>Debugging Refresher&lt;/strong>
+&lt;/h3>&lt;p>set disassembly-flavor intel 设置为intel格式&lt;/p>
+&lt;p>&lt;strong>level8&lt;/strong>&lt;/p>
+&lt;p>win+12 +20 +24 +33处，[rax]指向的地址为0，为nullptr，会引发segmentation fault&lt;/p>
+&lt;p>因而此处直接跳过错误代码，跳转到win+35进行后续操作即可&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> 0x580e06449951 &amp;lt;win&amp;gt;: endbr64
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449955 &amp;lt;win+4&amp;gt;: push rbp
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449956 &amp;lt;win+5&amp;gt;: mov rbp,rsp
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449959 &amp;lt;win+8&amp;gt;: sub rsp,0x10
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644995d &amp;lt;win+12&amp;gt;: mov QWORD PTR [rbp-0x8],0x0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449965 &amp;lt;win+20&amp;gt;: mov rax,QWORD PTR [rbp-0x8]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449969 &amp;lt;win+24&amp;gt;: mov eax,DWORD PTR [rax]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644996b &amp;lt;win+26&amp;gt;: lea edx,[rax+0x1]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644996e &amp;lt;win+29&amp;gt;: mov rax,QWORD PTR [rbp-0x8]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449972 &amp;lt;win+33&amp;gt;: mov DWORD PTR [rax],edx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449974 &amp;lt;win+35&amp;gt;: lea rdi,[rip+0x73e] # 0x580e0644a0b9
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644997b &amp;lt;win+42&amp;gt;: call 0x580e06449180 &amp;lt;puts@plt&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449980 &amp;lt;win+47&amp;gt;: mov esi,0x0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449985 &amp;lt;win+52&amp;gt;: lea rdi,[rip+0x749] # 0x580e0644a0d5
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e0644998c &amp;lt;win+59&amp;gt;: mov eax,0x0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 0x580e06449991 &amp;lt;win+64&amp;gt;: call 0x580e06449240 &amp;lt;open@plt&amp;gt;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jump *win+35
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> c
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="building-a-web-server">&lt;strong>Building a Web Server&lt;/strong>
+&lt;/h3>&lt;p>正好借这一部分复习一下汇编的知识。这一章一方面是要经常查表，查看各个&lt;a class="link" href="https://www.cnblogs.com/tcctw/p/11450449.html" target="_blank" rel="noopener"
+>系统调用&lt;/a>的用法，另一方面就是考察一些程序设计基本功。题目要求写一个处理GET请求和POST请求的汇编程序。&lt;/p>
+&lt;h4 id="part1">PART1
+&lt;/h4>&lt;p>创建&lt;code>socket&lt;/code>，以及执行&lt;code>listen&lt;/code>，&lt;code>bind&lt;/code>等系统调用，完成一个初始化。调用&lt;code>bind&lt;/code>的时需要在栈内构建一个结构体&lt;code>sockaddr&lt;/code>。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> mov rdi, 2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 41 # create socket
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 24], rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 24], 0 # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 16], 2 # AF_INET (2 bytes)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 14], 0x5000 # Port 80 (network byte order: 0x5000)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov dword ptr [rsp - 12], 0x0000000 # 0.0.0.0 (network byte order: 0x7F000001)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 8], 0 # sin_zero (8 bytes padding
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-16]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 16
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 49 # bind
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 50 # listen
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="part2">PART2
+&lt;/h4>&lt;p>接收request并创建response，使用&lt;code>accept&lt;/code>获取request，从中读出要处理的文件名，将本地的文件内容&lt;code>write&lt;/code>到相关的fd中。
+这里我简单粗暴在栈上开辟了一个超大的空间用于保存request的内容，然后从头遍历，&lt;strong>把文件名的后一个byte写为&lt;code>\0&lt;/code>&lt;/strong>，再把指向文件名的地址传送给系统调用&lt;code>open&lt;/code>即可。&lt;code>accept&lt;/code>会返回一个套接字文件描述符，往里面&lt;code>write&lt;/code>文件内容即可。&lt;/p>
+&lt;h4 id="part3">PART3
+&lt;/h4>&lt;p>对于每一个请求，使用子进程进行处理。&lt;/p>
+&lt;p>这里涉及到系统调用&lt;code>fork&lt;/code>的用法。调用之后，父子进程都将从当前程序的位置往后执行，且父子进程&lt;strong>不共享栈空间&lt;/strong>。在&lt;code>fork&lt;/code>后要加一个判断逻辑，根据fork的返回值判断当前进程是父进程还是子进程，&lt;strong>返回值为0则是子进程，否则为父进程&lt;/strong>。对于父进程，程序进入循环，接收下一个请求，对于子进程，程序处理现在的这个请求。&lt;/p>
+&lt;h4 id="part4">PART4
+&lt;/h4>&lt;p>处理POST请求。POST请求的内容包括要写入的文件名，要写入的内容以及长度。文件头&lt;code>Content-Length&lt;/code>会说明要写入内容的长度。&lt;/p>
+&lt;p>这里要处理两部分的内容，第一是匹配该文件头，第二是读取文件长度。下面的代码是我的处理逻辑。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> # 获取length所处的位置
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 15
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xxx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov cl, byte ptr [rsp-924+rdi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp cl, byte ptr [length+rsi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je xx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp xxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rsi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp rsi,rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne xxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 计算length
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xxxx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 一个字节一个字节读，计算长度
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 如123等于 ((&amp;#39;1&amp;#39;-&amp;#39;0&amp;#39;)*10+(&amp;#39;2&amp;#39;-&amp;#39;0&amp;#39;))*10+(&amp;#39;3&amp;#39;-&amp;#39;0&amp;#39;)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> imul eax, 10
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov cl, byte ptr [rsp - 924+rdi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> sub cl, &amp;#39;0&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rax, rcx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp-924+rdi], &amp;#39;\r&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne xxxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">.section .data
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">msg: .asciz &amp;#34;HTTP/1.0 200 OK\r\n\r\n&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">length: .asciz &amp;#34;Content-Length:&amp;#34;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="完整代码">完整代码
+&lt;/h4>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt"> 10
+&lt;/span>&lt;span class="lnt"> 11
+&lt;/span>&lt;span class="lnt"> 12
+&lt;/span>&lt;span class="lnt"> 13
+&lt;/span>&lt;span class="lnt"> 14
+&lt;/span>&lt;span class="lnt"> 15
+&lt;/span>&lt;span class="lnt"> 16
+&lt;/span>&lt;span class="lnt"> 17
+&lt;/span>&lt;span class="lnt"> 18
+&lt;/span>&lt;span class="lnt"> 19
+&lt;/span>&lt;span class="lnt"> 20
+&lt;/span>&lt;span class="lnt"> 21
+&lt;/span>&lt;span class="lnt"> 22
+&lt;/span>&lt;span class="lnt"> 23
+&lt;/span>&lt;span class="lnt"> 24
+&lt;/span>&lt;span class="lnt"> 25
+&lt;/span>&lt;span class="lnt"> 26
+&lt;/span>&lt;span class="lnt"> 27
+&lt;/span>&lt;span class="lnt"> 28
+&lt;/span>&lt;span class="lnt"> 29
+&lt;/span>&lt;span class="lnt"> 30
+&lt;/span>&lt;span class="lnt"> 31
+&lt;/span>&lt;span class="lnt"> 32
+&lt;/span>&lt;span class="lnt"> 33
+&lt;/span>&lt;span class="lnt"> 34
+&lt;/span>&lt;span class="lnt"> 35
+&lt;/span>&lt;span class="lnt"> 36
+&lt;/span>&lt;span class="lnt"> 37
+&lt;/span>&lt;span class="lnt"> 38
+&lt;/span>&lt;span class="lnt"> 39
+&lt;/span>&lt;span class="lnt"> 40
+&lt;/span>&lt;span class="lnt"> 41
+&lt;/span>&lt;span class="lnt"> 42
+&lt;/span>&lt;span class="lnt"> 43
+&lt;/span>&lt;span class="lnt"> 44
+&lt;/span>&lt;span class="lnt"> 45
+&lt;/span>&lt;span class="lnt"> 46
+&lt;/span>&lt;span class="lnt"> 47
+&lt;/span>&lt;span class="lnt"> 48
+&lt;/span>&lt;span class="lnt"> 49
+&lt;/span>&lt;span class="lnt"> 50
+&lt;/span>&lt;span class="lnt"> 51
+&lt;/span>&lt;span class="lnt"> 52
+&lt;/span>&lt;span class="lnt"> 53
+&lt;/span>&lt;span class="lnt"> 54
+&lt;/span>&lt;span class="lnt"> 55
+&lt;/span>&lt;span class="lnt"> 56
+&lt;/span>&lt;span class="lnt"> 57
+&lt;/span>&lt;span class="lnt"> 58
+&lt;/span>&lt;span class="lnt"> 59
+&lt;/span>&lt;span class="lnt"> 60
+&lt;/span>&lt;span class="lnt"> 61
+&lt;/span>&lt;span class="lnt"> 62
+&lt;/span>&lt;span class="lnt"> 63
+&lt;/span>&lt;span class="lnt"> 64
+&lt;/span>&lt;span class="lnt"> 65
+&lt;/span>&lt;span class="lnt"> 66
+&lt;/span>&lt;span class="lnt"> 67
+&lt;/span>&lt;span class="lnt"> 68
+&lt;/span>&lt;span class="lnt"> 69
+&lt;/span>&lt;span class="lnt"> 70
+&lt;/span>&lt;span class="lnt"> 71
+&lt;/span>&lt;span class="lnt"> 72
+&lt;/span>&lt;span class="lnt"> 73
+&lt;/span>&lt;span class="lnt"> 74
+&lt;/span>&lt;span class="lnt"> 75
+&lt;/span>&lt;span class="lnt"> 76
+&lt;/span>&lt;span class="lnt"> 77
+&lt;/span>&lt;span class="lnt"> 78
+&lt;/span>&lt;span class="lnt"> 79
+&lt;/span>&lt;span class="lnt"> 80
+&lt;/span>&lt;span class="lnt"> 81
+&lt;/span>&lt;span class="lnt"> 82
+&lt;/span>&lt;span class="lnt"> 83
+&lt;/span>&lt;span class="lnt"> 84
+&lt;/span>&lt;span class="lnt"> 85
+&lt;/span>&lt;span class="lnt"> 86
+&lt;/span>&lt;span class="lnt"> 87
+&lt;/span>&lt;span class="lnt"> 88
+&lt;/span>&lt;span class="lnt"> 89
+&lt;/span>&lt;span class="lnt"> 90
+&lt;/span>&lt;span class="lnt"> 91
+&lt;/span>&lt;span class="lnt"> 92
+&lt;/span>&lt;span class="lnt"> 93
+&lt;/span>&lt;span class="lnt"> 94
+&lt;/span>&lt;span class="lnt"> 95
+&lt;/span>&lt;span class="lnt"> 96
+&lt;/span>&lt;span class="lnt"> 97
+&lt;/span>&lt;span class="lnt"> 98
+&lt;/span>&lt;span class="lnt"> 99
+&lt;/span>&lt;span class="lnt">100
+&lt;/span>&lt;span class="lnt">101
+&lt;/span>&lt;span class="lnt">102
+&lt;/span>&lt;span class="lnt">103
+&lt;/span>&lt;span class="lnt">104
+&lt;/span>&lt;span class="lnt">105
+&lt;/span>&lt;span class="lnt">106
+&lt;/span>&lt;span class="lnt">107
+&lt;/span>&lt;span class="lnt">108
+&lt;/span>&lt;span class="lnt">109
+&lt;/span>&lt;span class="lnt">110
+&lt;/span>&lt;span class="lnt">111
+&lt;/span>&lt;span class="lnt">112
+&lt;/span>&lt;span class="lnt">113
+&lt;/span>&lt;span class="lnt">114
+&lt;/span>&lt;span class="lnt">115
+&lt;/span>&lt;span class="lnt">116
+&lt;/span>&lt;span class="lnt">117
+&lt;/span>&lt;span class="lnt">118
+&lt;/span>&lt;span class="lnt">119
+&lt;/span>&lt;span class="lnt">120
+&lt;/span>&lt;span class="lnt">121
+&lt;/span>&lt;span class="lnt">122
+&lt;/span>&lt;span class="lnt">123
+&lt;/span>&lt;span class="lnt">124
+&lt;/span>&lt;span class="lnt">125
+&lt;/span>&lt;span class="lnt">126
+&lt;/span>&lt;span class="lnt">127
+&lt;/span>&lt;span class="lnt">128
+&lt;/span>&lt;span class="lnt">129
+&lt;/span>&lt;span class="lnt">130
+&lt;/span>&lt;span class="lnt">131
+&lt;/span>&lt;span class="lnt">132
+&lt;/span>&lt;span class="lnt">133
+&lt;/span>&lt;span class="lnt">134
+&lt;/span>&lt;span class="lnt">135
+&lt;/span>&lt;span class="lnt">136
+&lt;/span>&lt;span class="lnt">137
+&lt;/span>&lt;span class="lnt">138
+&lt;/span>&lt;span class="lnt">139
+&lt;/span>&lt;span class="lnt">140
+&lt;/span>&lt;span class="lnt">141
+&lt;/span>&lt;span class="lnt">142
+&lt;/span>&lt;span class="lnt">143
+&lt;/span>&lt;span class="lnt">144
+&lt;/span>&lt;span class="lnt">145
+&lt;/span>&lt;span class="lnt">146
+&lt;/span>&lt;span class="lnt">147
+&lt;/span>&lt;span class="lnt">148
+&lt;/span>&lt;span class="lnt">149
+&lt;/span>&lt;span class="lnt">150
+&lt;/span>&lt;span class="lnt">151
+&lt;/span>&lt;span class="lnt">152
+&lt;/span>&lt;span class="lnt">153
+&lt;/span>&lt;span class="lnt">154
+&lt;/span>&lt;span class="lnt">155
+&lt;/span>&lt;span class="lnt">156
+&lt;/span>&lt;span class="lnt">157
+&lt;/span>&lt;span class="lnt">158
+&lt;/span>&lt;span class="lnt">159
+&lt;/span>&lt;span class="lnt">160
+&lt;/span>&lt;span class="lnt">161
+&lt;/span>&lt;span class="lnt">162
+&lt;/span>&lt;span class="lnt">163
+&lt;/span>&lt;span class="lnt">164
+&lt;/span>&lt;span class="lnt">165
+&lt;/span>&lt;span class="lnt">166
+&lt;/span>&lt;span class="lnt">167
+&lt;/span>&lt;span class="lnt">168
+&lt;/span>&lt;span class="lnt">169
+&lt;/span>&lt;span class="lnt">170
+&lt;/span>&lt;span class="lnt">171
+&lt;/span>&lt;span class="lnt">172
+&lt;/span>&lt;span class="lnt">173
+&lt;/span>&lt;span class="lnt">174
+&lt;/span>&lt;span class="lnt">175
+&lt;/span>&lt;span class="lnt">176
+&lt;/span>&lt;span class="lnt">177
+&lt;/span>&lt;span class="lnt">178
+&lt;/span>&lt;span class="lnt">179
+&lt;/span>&lt;span class="lnt">180
+&lt;/span>&lt;span class="lnt">181
+&lt;/span>&lt;span class="lnt">182
+&lt;/span>&lt;span class="lnt">183
+&lt;/span>&lt;span class="lnt">184
+&lt;/span>&lt;span class="lnt">185
+&lt;/span>&lt;span class="lnt">186
+&lt;/span>&lt;span class="lnt">187
+&lt;/span>&lt;span class="lnt">188
+&lt;/span>&lt;span class="lnt">189
+&lt;/span>&lt;span class="lnt">190
+&lt;/span>&lt;span class="lnt">191
+&lt;/span>&lt;span class="lnt">192
+&lt;/span>&lt;span class="lnt">193
+&lt;/span>&lt;span class="lnt">194
+&lt;/span>&lt;span class="lnt">195
+&lt;/span>&lt;span class="lnt">196
+&lt;/span>&lt;span class="lnt">197
+&lt;/span>&lt;span class="lnt">198
+&lt;/span>&lt;span class="lnt">199
+&lt;/span>&lt;span class="lnt">200
+&lt;/span>&lt;span class="lnt">201
+&lt;/span>&lt;span class="lnt">202
+&lt;/span>&lt;span class="lnt">203
+&lt;/span>&lt;span class="lnt">204
+&lt;/span>&lt;span class="lnt">205
+&lt;/span>&lt;span class="lnt">206
+&lt;/span>&lt;span class="lnt">207
+&lt;/span>&lt;span class="lnt">208
+&lt;/span>&lt;span class="lnt">209
+&lt;/span>&lt;span class="lnt">210
+&lt;/span>&lt;span class="lnt">211
+&lt;/span>&lt;span class="lnt">212
+&lt;/span>&lt;span class="lnt">213
+&lt;/span>&lt;span class="lnt">214
+&lt;/span>&lt;span class="lnt">215
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">.intel_syntax noprefix
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">.globl _start
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">.section .text
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">_start:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 24], 0 # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 16], 2 # AF_INET (2 bytes)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 14], 0x5000 # Port 80 (network byte order: 0x5000)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov dword ptr [rsp - 12], 0x0000000 # 127.0.0.1 (network byte order: 0x7F000001)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 8], 0 # sin_zero (8 bytes padding
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, 2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 41 # create socket
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 将文件描述符保存在栈上
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 24], rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-16]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 16
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 49 # bind
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 50 # listen
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 324], 0 # 保存文件内容
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov word ptr [rsp - 924], 0 # 保存读取的request
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 932], 0 # 备用
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 940], 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">handle:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24] # fd
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0 # use 0 to represent NULL
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 43 # accept
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rbx, rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 57 # fork
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 这里需要判断当前进程是子进程还是主进程
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je child
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp handle
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">child:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, [rsp - 24]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-924]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 600
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # read
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp - 924], &amp;#39;G&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je handle_get
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp - 924], &amp;#39;P&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je handle_post
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp _end
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">handle_post:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 截取file name
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax,0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">loop1:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp-919+rax], &amp;#39; &amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne loop1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov byte ptr [rsp-919+rax], 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 获取length所处的位置
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 15
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xxx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov cl, byte ptr [rsp-924+rdi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp cl, byte ptr [length+rsi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> je xx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp xxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rsi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp rsi,rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne xxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 计算length
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">xxxx:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> imul eax, 10
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov cl, byte ptr [rsp - 924+rdi]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> sub cl, &amp;#39;0&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rax, rcx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rdi, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp-924+rdi], &amp;#39;\r&amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne xxxx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 获取到了长度存储在rax中
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 932], rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp - 940], rdi
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # open file
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rdi, [rsp - 919]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0x41
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 0777
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rcx, [rsp - 940]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rcx, 4
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-924+rcx]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, [rsp - 932]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # write
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [msg]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 19
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # write msg
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jmp _end
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">handle_get:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # 截取file name
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax,0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">loop2:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> add rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> cmp byte ptr [rsp-920+rax], &amp;#39; &amp;#39;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> jne loop2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov byte ptr [rsp-920+rax], 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"># 根据GET或者POST选择不同的策略
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # open file
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rdi, [rsp - 920]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rsi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 16
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 2
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> # read file
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-324]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 300
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov qword ptr [rsp-932], rax
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [msg]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, 19
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # write
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> lea rsi, [rsp-324]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdx, [rsp-932]
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 1
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # write
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, rbx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 3
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall # close
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">_end:
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rdi, 0
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> mov rax, 60 # SYS_exit
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> syscall
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">.section .data
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">msg: .asciz &amp;#34;HTTP/1.0 200 OK\r\n\r\n&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">length: .asciz &amp;#34;Content-Length:&amp;#34;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="playing-with-programs">&lt;strong>Playing With Programs&lt;/strong>
+&lt;/h2>&lt;h3 id="program-misuse">Program Misuse
+&lt;/h3>&lt;p>这一关讲述了用各种命令获取flag。&lt;/p>
+&lt;p>cat、more、less、tail、head、vim、emacs、nano，这些命令都可以直接读取。&lt;/p>
+&lt;p>这里面，我对&lt;code>emacs&lt;/code>确实稍微没那么了解，使用也很少，它其实也是一种文本编辑器。&lt;/p>
+&lt;p>紧随其后的其他命令就没那么直接了。&lt;/p>
+&lt;h4 id="rev">rev
+&lt;/h4>&lt;p>&lt;code>rev&lt;/code>命令，其实就是&lt;code>reverse&lt;/code>，它会把文件内容倒着输出，&lt;strong>每一行内容都反向输出&lt;/strong>。那么我们要做的就是将flag反向输出的内容保存到一个文件里，再反向输出一次，就可以得到flag了。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">/challenge/rev /flag &amp;gt; ./galf
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/rev ./galf
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="odhdxxd">od、hd、xxd
+&lt;/h4>&lt;p>这三个都是进制查看工具，hd即&lt;code>hexdump&lt;/code>应用稍微广泛一些。&lt;/p>
+&lt;p>od命令，全称为&lt;code>octal dump&lt;/code>。是Linux中用于以八进制和其他格式（如十六进制、十进制和ASCII）显示文件内容的工具。这个命令在查看通常不易读的文件，如编译过的二进制文件时非常有用。&lt;/p>
+&lt;p>常用选项&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>-b：以单字节八进制显示文件内容。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>-c：以ASCII字符显示文件内容。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>-x：将输入转换为十六进制格式。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>-d：将输入转换为十进制格式。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>-j：跳过文件的初始字节数。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>-N：限制输出的字节数。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>-w：自定义输出的宽度。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>-v：输出重复的值。&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">/challenge/od -c /flag
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>hd，全名&lt;code>hexdump&lt;/code>，功能和od似乎差不多，也是用各种进制的形式显示文件内容。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">/challenge/hd -c /flag
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>xxd同理。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">/challenge/xxd /flag
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="base32base64">base32、base64
+&lt;/h4>&lt;p>这两个命令都是用来加解码的。只是编码的格式不一样而已。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">/challenge/base32 /flag &amp;gt; ./galf
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/base32 -d ./galf
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/base64 /flag &amp;gt; ./galf
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">/challenge/base64 -d ./galf
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h4 id="split">split
+&lt;/h4>&lt;p>&lt;code>split&lt;/code>命令可以将大文件分割为多个小文件，默认情况下会创建每一千行一个新文件。&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>-l 指定分割行数&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>-b 指定分割的文件大小&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>-d 将分割后的文件名以数字结尾&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">/challenge/split -l 1 /flag xx
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">cat xxaa
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这个命令将文件按照每行进行分割，分隔到前缀为xx的多个文件之中。&lt;/p>
+&lt;h4 id="gzipbzip2ziptar">gzip、bzip2、zip、tar
+&lt;/h4>&lt;p>这几个命令就很眼熟了，都是用于压缩和解压的。这几个命令又是如何运用到读取文件的呢？&lt;/p>
+&lt;p>gzip，gzip进行压缩时，会默认不保留原文件，压缩后的文件以&lt;code>.gz&lt;/code>后缀结尾，同时继承原文件的权限信息。&lt;/p>
+&lt;ul>
+&lt;li>-d：解压缩 .gz 文件。相当于使用 gunzip 命令。&lt;/li>
+&lt;li>-k：保留原始文件，不删除。&lt;/li>
+&lt;li>-r：递归压缩目录下的所有文件。&lt;/li>
+&lt;li>-v：显示详细的压缩或解压缩过程。&lt;/li>
+&lt;li>-c: 输出到标准输出&lt;/li>
+&lt;/ul>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">gzip /flag
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"># -d 进行解压，-c则输出到标准输出，从而显示文件内容
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">gzip -d -c /flag.gz
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="sql">SQL
+&lt;/h3>&lt;p>这一章的内容主要讲述了sql的基础语法。这里我只总结一部分有意思的内容。&lt;/p>
+&lt;p>1、&lt;code>substr&lt;/code>的用法&lt;/p>
+&lt;p>包含三个参数：目标字符串，起始（需要注意的是，sql字符串的第一个字符下标为1），长度。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">select text from table where substr(text,1,3)=&amp;#34;pwn&amp;#34;
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>2、&lt;code>sqlite_master&lt;/code>表&lt;/p>
+&lt;p>在SQLite数据库中，&lt;code>sqlite_master&lt;/code>是一个存储数据库元信息的特殊表，它会在每个SQLite数据库创建时自动生成。这个表包含了数据库中所有其他表、索引、触发器和视图的描述信息。&lt;/p>
+&lt;p>这个表包含的字段有：&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>type: 记录项目的类型，如table、index、view、trigger。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>name: 记录项目的名称，如表名、索引名等。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>tbl_name: 记录所从属的表名，对于表来说，该列就是表名本身。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>rootpage: 记录项目在数据库页中存储的编号。对于视图和触发器，该列值为0或者NULL。&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>sql: 记录创建该项目的SQL语句。&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>SQL的语法我从一开始进入大学学习计算机时就有接触，但是没有什么很高深的应用，只是做一些简单的增删改查以及数据库的管理。但是在安全领域以及数据库落地，SQL的使用还是很重要的。如&lt;strong>SQL注入&lt;/strong>，以及&lt;strong>高效mysql&lt;/strong>。&lt;/p></description></item></channel></rss>
