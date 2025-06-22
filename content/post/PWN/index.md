@@ -153,6 +153,100 @@ chmod u+s [file] 让其他用户以该文件的owner权限接触该文件
 
 ```
 
+### **Silly Shenanigans**
+
+1、Bashrc Backdoor
+
+.bashrc中的命令会在启动时被执行，可以用作一些恶意行为。
+
+2、Sniffing Input
+
+这一关的通关思路是修改`/home/zardus/.bashrc`，在其目录下创建一个flag_checker，将该脚本的路径加入到PATH，使zardus执行flag_checker时执行的是该目录下的脚本，读取并打印flag。
+
+修改.bashrc如下：
+
+![bashrc](bashrc.png)
+
+3、Overshared Directories
+
+这一关用我上一关的方法也可以成功读取flag。
+
+4、Trikey Linking
+
+这一关，zardus会向`/tmp/collab/evil-commnands.txt`中写入读取flag的命令，我们可以建立一个evil-commands.txt到.bashrc的链接，让zardus将命令写入.bashrc，从而读取flag。
+
+```
+rm /tmp/collab/evil-commands.txt
+ln /home/zardus/.bashrc /tmp/collab/evil-commands.txt
+/challenge/victim
+/challenge/victim
+```
+
+5、Sniffing Process Arguments
+
+这一关很简单，通过`ps -aux`查看zardus的进程及其涉及到的密码，登录并读取flag。
+
+6、Snooping on configurations
+
+这一关也很简单，它主要就是为了告诉我们用户的.bashrc对于其他用户是默认可读的。我们通过查看.bashrc获取key就可以。
+
+### **Daring Destruction**
+
+1、The Fork Bomb
+
+这一关编写一个脚本，不停地执行fork操作，直到系统资源被耗尽。
+
+```python
+import os
+while True:
+    os.system("python3 test.py &")
+```
+
+```
+/challenge/check
+python3 test.py
+```
+
+不过这一关让我比较好奇的是，如果仅仅是执行`python3 test.py`，系统资源并不会被耗尽，而`python3 test.py &`这种background进程，则会很快消耗掉资源，这是为什么？
+
+原因也很简单，加上了`&`之后，进程会变为非阻塞式，程序会不断运行，而去掉之后，则会等待命令执行完毕之后再执行后面的命令，因为不会带来很大的开销。
+
+2、Disk-Space DoomsDay
+
+```
+yes > ./x.txt
+/challenge/check
+rm ./x.txt
+/challengr/check
+```
+
+3、rm -rf /
+
+阅读/challenge/check：
+![check](check.png)
+
+当根目录下的文件被删到一定程度时就会打印flag内容。
+
+这一关开启两个terminal，一个执行`/challenge/check`，另一个执行`rm -rf --no-preserve-root /`，等待一段时间后，check就会打印flag。
+
+4、Life after rm -rf /
+
+这一关和上一关类似，但是`/challenge/check`不会直接打印/flag，而是在检测到条件满足后，将flag的值再次保存到新的/flag中。
+
+然而使用了`rm -rf /`之后，cat已经无法使用，这时候只能使用buildin内置命令，比如使用`read`读取文件。
+
+```
+read x < /flag
+$x
+```
+
+5、Finding meaning after rm -rf /
+
+这一关和上一关的不同之处在于，flag会被保存为一个随机的名称，然而ls命令此时已经不可用，我们可以用echo读取出文件名。
+```
+echo /*
+```
+
 ## **2、computing 101**
 
 ### Your first program
@@ -555,7 +649,9 @@ cat、more、less、tail、head、vim、emacs、nano，这些命令都可以直�
 /challenge/rev ./galf
 ```
 
-#### od
+#### od、hd、xxd
+
+这三个都是进制查看工具，hd即`hexdump`应用稍微广泛一些。
 
 od命令，全称为`octal dump`。是Linux中用于以八进制和其他格式（如十六进制、十进制和ASCII）显示文件内容的工具。这个命令在查看通常不易读的文件，如编译过的二进制文件时非常有用。
 
@@ -579,6 +675,68 @@ od命令，全称为`octal dump`。是Linux中用于以八进制和其他格式�
 
 ```
 /challenge/od -c /flag
+```
+
+
+
+hd，全名`hexdump`，功能和od似乎差不多，也是用各种进制的形式显示文件内容。
+
+```
+/challenge/hd -c /flag
+```
+
+xxd同理。
+
+```
+/challenge/xxd /flag
+```
+
+#### base32、base64
+
+这两个命令都是用来加解码的。只是编码的格式不一样而已。
+
+```
+/challenge/base32 /flag > ./galf
+/challenge/base32 -d ./galf
+
+/challenge/base64 /flag > ./galf
+/challenge/base64 -d ./galf
+
+```
+
+#### split
+
+`split`命令可以将大文件分割为多个小文件，默认情况下会创建每一千行一个新文件。
+
++ -l 指定分割行数
+
++ -b 指定分割的文件大小
+
++ -d 将分割后的文件名以数字结尾
+
+```
+/challenge/split -l 1 /flag xx
+cat xxaa
+```
+
+这个命令将文件按照每行进行分割，分隔到前缀为xx的多个文件之中。
+
+#### gzip、bzip2、zip、tar
+
+这几个命令就很眼熟了，都是用于压缩和解压的。这几个命令又是如何运用到读取文件的呢？
+
+gzip，gzip进行压缩时，会默认不保留原文件，压缩后的文件以`.gz`后缀结尾，同时继承原文件的权限信息。
+
++ -d：解压缩 .gz 文件。相当于使用 gunzip 命令。
++ -k：保留原始文件，不删除。
++ -r：递归压缩目录下的所有文件。
++ -v：显示详细的压缩或解压缩过程。
++ -c: 输出到标准输出
+
+```
+gzip /flag
+# -d 进行解压，-c则输出到标准输出，从而显示文件内容
+gzip -d -c /flag.gz
 ```
 
 ### SQL
