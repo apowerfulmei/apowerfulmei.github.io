@@ -41,9 +41,68 @@ Syzkaller对测试用例的最小化的主要功能集中在[prog/minimize.go文
 
 ### 系统调用序列最小化
 
-这一部分工作旨在尽可能移除无关的系统调用而仍使测试用例保留原有的功能（触发崩溃）。
+这一部分工作旨在尽可能移除无关的系统调用而仍使测试用例保留原有的功能（触发崩溃或维持覆盖率）。
 
-[removeCalls函数](https://github.com/google/syzkaller/blob/a55c0058ebb614a710cb236c1b47f30aeb88ab12/prog/minimization.go#L120)
+这部分功能由[removeCalls函数](https://github.com/google/syzkaller/blob/a55c0058ebb614a710cb236c1b47f30aeb88ab12/prog/minimization.go#L120)实现，我们可以将其分为三个部分：切割、无关系统调用剔除、遍历筛选。
+
+**1、切割**
+
+首先，函数会移除所有在目标系统调用之后的系统调用，因为大部分情况下，这些系统调用不会影响目标系统调用的状态。
+
+```go
+	if callIndex0 >= 0 && callIndex0+2 < len(p0.Calls) {
+		// It's frequently the case that all subsequent calls were not necessary.
+		// Try to drop them all at once.
+		p := p0.Clone()
+		for i := len(p0.Calls) - 1; i > callIndex0; i-- {
+			p.RemoveCall(i)
+		}
+		if pred(p, callIndex0, statMinRemoveCall, "trailing calls") {
+			p0 = p
+		}
+	}
+```
+
+**2、无关系统调用剔除**
+
+随后，将调用函数[removeUnrelatedCalls](https://github.com/google/syzkaller/blob/a55c0058ebb614a710cb236c1b47f30aeb88ab12/prog/minimization.go#L160)，移除和目标系统调用无关的系统调用。
+
+它首先调用函数relatedCalls，生成一个 `map[int]bool` 类型字典，字典表示每个系统调用和目标系统调用是否有关，随后遍历整个测试用例，将无关的系统调用删去，并测试功能是否完整。
+
+relatedCalls函数会首先调用 `uses` 函数：
+
+```go
+func uses(call *Call) map[any]bool {
+	used := make(map[any]bool)
+	// 遍历所有的参数
+	ForeachArg(call, func(arg Arg, _ *ArgCtx) {
+		switch typ := arg.Type().(type) {
+		case *ResourceType:
+			a := arg.(*ResultArg) 
+			used[a] = true
+			if a.Res != nil {
+				used[a.Res] = true
+			}
+			// args that use this arg
+			for use := range a.uses {
+				used[use] = true
+			}
+		case *BufferType:
+			a := arg.(*DataArg)
+			if a.Dir() != DirOut && typ.Kind == BufferFilename {
+				val := string(bytes.TrimRight(a.Data(), "\x00"))
+				used[val] = true
+			}
+		}
+	})
+	return used
+}
+```
+
+提取出目标系统调用使用的所有资源，将其存放在used map中。随后遍历所有其他系统调用，同样提取其使用的资源used1，将其与used进行比较，如果used1使用了used中使用过的资源，则认为该系统调用是**相关**的，并将used1合并到used中。
+
+
+**3、遍历筛选**
 
 随后，函数会倒序逐个移除系统调用，如果发现移除后，测试用例原功能丧失，则保留该系统调用，跳过对下一个系统调用进行测试。
 
@@ -66,11 +125,54 @@ Syzkaller对测试用例的最小化的主要功能集中在[prog/minimize.go文
 	}
 ```
 
+### 系统调用参数最小化
+
+这一部分改天更新。
+
 
 ## Syzkaller的最小化场景
 
-Syzkaller最小化的场景有如下几种：Fuzz运行时、漏洞复现
+Syzkaller最小化的场景有如下几种：Fuzz运行时、崩溃复现
 
 ### Fuzz运行时
 
-这一部分我们可以看[job.go中的代码](https://github.com/google/syzkaller/blob/a55c0058ebb614a710cb236c1b47f30aeb88ab12/pkg/fuzzer/job.go#L343)，从它给prog.minimize传递的pred函数可以发现，这里最小化的功能完整性体现在**经过最小化之后，目标系统调用的覆盖率并没有减小**，这说明删去的系统调用对于目标没有影响。
+这一部分我们可以看[job.go中的代码](https://github.com/google/syzkaller/blob/a55c0058ebb614a710cb236c1b47f30aeb88ab12/pkg/fuzzer/job.go#L343)，从它给prog.minimize传递的pred函数可以发现，这里最小化的功能完整性体现在**经过最小化之后，目标系统调用的覆盖率并没有减小**。
+
+```go
+	p, call := prog.Minimize(job.p, call, mode, func(p1 *prog.Prog, call1 int) bool {
+		if stop {
+			return false
+		}
+		var mergedSignal signal.Signal
+		for i := 0; i < minimizeAttempts; i++ {
+			...
+			if !reexecutionSuccess(result.Info, info.errno, call1) {
+				// The call was not executed or failed.
+				continue
+			}
+			// 获取目标call执行后的signal
+			thisSignal := getSignalAndCover(p1, result.Info, call1)
+			if mergedSignal.Len() == 0 {
+				mergedSignal = thisSignal
+			} else {
+				mergedSignal.Merge(thisSignal)
+			}
+			// signal没有发生变化，signal的长度相等
+			if info.newStableSignal.Intersection(mergedSignal).Len() == info.newStableSignal.Len() {
+				...
+				return true
+			}
+		}
+		...
+		return false
+	})
+```
+
+系统调用与系统调用之间存在着隐式与显式的依赖关系，一个系统调用可能会对另一个系统调用产生一些影响，使其执行后的覆盖率发生变化，经过最小化处理后，测试用例会删去那些对目标系统调用无关的系统调用。
+
+
+### 崩溃复现
+
+这一部分内容我们可以参考syz-repro工具的原理，在一个测试用例触发崩溃之后，syzkaller会进行最小化，提取出能出发崩溃的最小测试用例。
+
+在实现上和上一个流程基本相同，但在调用Minimize函数时，会将callIndex设置为-1，这将跳过切割与无关剔除步骤，直接遍历每个系统调用，观察删去该系统调用之后，崩溃是否还能成功触发。
