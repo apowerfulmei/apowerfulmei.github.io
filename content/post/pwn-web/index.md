@@ -297,11 +297,20 @@ app.run("localhost", 1337)
 
 这两关与路径相关，我们在request中加入`../`即可挣脱出server设置的路径限制，对任意其他文件进行访问。
 
-level1: `curl  http://challenge.localhost:80/blob/..%2F..%2Fflag`
+level1: 
 
-如果我们直接运行`curl  http://challenge.localhost:80/blob/../../flag`，路径最终会被解析为`/flag`，会出现这个问题的原因是**curl会对路径进行简化**，将`../`合并，因此我们可以通过将字符转为编码以解决此问题。此外，我们也可以用curl的flag `--path-as-is` 解决此问题，即使用命令 `curl --path-as-is http://challenge.localhost:80/blob/../../flag`。
+```
+curl  http://challenge.localhost:80/blob/..%2F..%2Fflag
+curl --path-as-is http://challenge.localhost:80/blob/../../flag
 
-level2：`curl -v http://challenge.localhost:80/data/fortunes/..%2F..%2F..%2Fflag`
+```
+
+如果我们直接运行`curl  http://challenge.localhost:80/blob/../../flag`，路径最终会被解析为`/flag`，会出现这个问题的原因是**curl会对路径进行简化**，将`../`合并，因此我们可以通过将字符转为编码以解决此问题。此外，我们也可以用curl的flag `--path-as-is` 解决此问题。
+
+level2：
+```
+curl -v http://challenge.localhost:80/data/fortunes/..%2F..%2F..%2Fflag
+```
 
 从level2的server源码`requested_path = app.root_path + "/files/" + path.strip("/.")`可以观察到，相较于level1，level2将path首尾的 `.` 和 `\` 字符删去了，我们只需要在路径首部加上一个存在的文件夹即可绕过。根据观察，在/challenge/files路径下存在一个fortunes文件夹，我们可以借此绕过检查。
 
