@@ -1,0 +1,1013 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Fuzz on apowerfulmei</title><link>https://apowerfulmei.github.io/categories/fuzz/</link><description>Recent content in Fuzz on apowerfulmei</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Tue, 01 Jul 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://apowerfulmei.github.io/categories/fuzz/index.xml" rel="self" type="application/rss+xml"/><item><title>Syzkaller Testcase Minimization</title><link>https://apowerfulmei.github.io/p/syz-minimization/</link><pubDate>Tue, 01 Jul 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/syz-minimization/</guid><description>&lt;h1 id="syzkaller-testcase-minimization">Syzkaller Testcase Minimization
+&lt;/h1>&lt;p>这里开一个新坑，来探讨一下syzkaller测试用例最小化是如何实现的。&lt;/p>
+&lt;h2 id="最小化的意义">最小化的意义
+&lt;/h2>&lt;p>首先，为什么我们需要进行测试用例最小化。关于最小化的研究最早可以追溯到Zeller的文章&lt;a class="link" href="https://dl.acm.org/doi/10.1145/318774.318946" target="_blank" rel="noopener"
+>Yesterday, my program worked. Today, it does not. Why?&lt;/a>，文章中提出的&lt;strong>Delta-Debug&lt;/strong>方法对后续的研究工作都有着极大的影响。&lt;/p>
+&lt;h2 id="syzkaller是如何进行最小化的">Syzkaller是如何进行最小化的
+&lt;/h2>&lt;p>Syzkaller对测试用例的最小化的主要功能集中在&lt;a class="link" href="https://github.com/google/syzkaller/blob/a55c0058ebb614a710cb236c1b47f30aeb88ab12/prog/minimization.go#L54" target="_blank" rel="noopener"
+>prog/minimize.go文件的Minimize函数中&lt;/a>，这个函数会接收四个参数：&lt;/p>
+&lt;table>
+&lt;thead>
+&lt;tr>
+&lt;th>参数&lt;/th>
+&lt;th>描述&lt;/th>
+&lt;/tr>
+&lt;/thead>
+&lt;tbody>
+&lt;tr>
+&lt;td>p0&lt;/td>
+&lt;td>要简化的测试用例序列&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>callIndex0&lt;/td>
+&lt;td>目标系统调用下标&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>mode&lt;/td>
+&lt;td>简化模式&lt;/td>
+&lt;/tr>
+&lt;tr>
+&lt;td>pred0&lt;/td>
+&lt;td>可以理解为验证函数，验证简化后的程序功能&lt;/td>
+&lt;/tr>
+&lt;/tbody>
+&lt;/table>
+&lt;p>函数最终将返回简化后的p0以及callIndex0。&lt;/p>
+&lt;p>接下来我们将具体分析该函数，可以分为两个部分来看，一个是系统调用序列的最小化，另一个是系统调用参数的最小化。&lt;/p>
+&lt;h3 id="系统调用序列最小化">系统调用序列最小化
+&lt;/h3>&lt;p>这一部分工作旨在尽可能移除无关的系统调用而仍使测试用例保留原有的功能（触发崩溃或维持覆盖率）。&lt;/p>
+&lt;p>这部分功能由&lt;a class="link" href="https://github.com/google/syzkaller/blob/a55c0058ebb614a710cb236c1b47f30aeb88ab12/prog/minimization.go#L120" target="_blank" rel="noopener"
+>removeCalls函数&lt;/a>实现，我们可以将其分为三个部分：切割、无关系统调用剔除、遍历筛选。&lt;/p>
+&lt;p>&lt;strong>1、切割&lt;/strong>&lt;/p>
+&lt;p>首先，函数会移除所有在目标系统调用之后的系统调用，因为大部分情况下，这些系统调用不会影响目标系统调用的状态。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mi">2&lt;/span> &lt;span class="p">&amp;lt;&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// It&amp;#39;s frequently the case that all subsequent calls were not necessary.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// Try to drop them all at once.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Clone&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="p">&amp;gt;&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="o">--&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RemoveCall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nf">pred&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">statMinRemoveCall&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;trailing calls&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>&lt;strong>2、无关系统调用剔除&lt;/strong>&lt;/p>
+&lt;p>随后，将调用函数&lt;a class="link" href="https://github.com/google/syzkaller/blob/a55c0058ebb614a710cb236c1b47f30aeb88ab12/prog/minimization.go#L160" target="_blank" rel="noopener"
+>removeUnrelatedCalls&lt;/a>，移除和目标系统调用无关的系统调用。&lt;/p>
+&lt;p>它首先调用函数relatedCalls，生成一个 &lt;code>map[int]bool&lt;/code> 类型字典，字典表示每个系统调用和目标系统调用是否有关，随后遍历整个测试用例，将无关的系统调用删去，并测试功能是否完整。&lt;/p>
+&lt;p>relatedCalls函数会首先调用 &lt;code>uses&lt;/code> 函数：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="line">&lt;span class="cl">&lt;span class="kd">func&lt;/span> &lt;span class="nf">uses&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">call&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">Call&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kd">map&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">any&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="kt">bool&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">used&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nb">make&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="kd">map&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="kt">any&lt;/span>&lt;span class="p">]&lt;/span>&lt;span class="kt">bool&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 遍历所有的参数&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nf">ForeachArg&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">call&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">arg&lt;/span> &lt;span class="nx">Arg&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">_&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">ArgCtx&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">switch&lt;/span> &lt;span class="nx">typ&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">arg&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Type&lt;/span>&lt;span class="p">().(&lt;/span>&lt;span class="kd">type&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">ResourceType&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">a&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">arg&lt;/span>&lt;span class="p">.(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">ResultArg&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">used&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nx">a&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="kc">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">a&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Res&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">used&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nx">a&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Res&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="kc">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// args that use this arg&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="nx">use&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="k">range&lt;/span> &lt;span class="nx">a&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">uses&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">used&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nx">use&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="kc">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">case&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">BufferType&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">a&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">arg&lt;/span>&lt;span class="p">.(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">DataArg&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">a&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Dir&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="nx">DirOut&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">typ&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Kind&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">BufferFilename&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">val&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nb">string&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">bytes&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">TrimRight&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">a&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Data&lt;/span>&lt;span class="p">(),&lt;/span> &lt;span class="s">&amp;#34;\x00&amp;#34;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">used&lt;/span>&lt;span class="p">[&lt;/span>&lt;span class="nx">val&lt;/span>&lt;span class="p">]&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="kc">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">})&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">used&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>提取出目标系统调用使用的所有资源，将其存放在used map中。随后遍历所有其他系统调用，同样提取其使用的资源used1，将其与used进行比较，如果used1使用了used中使用过的资源，则认为该系统调用是&lt;strong>相关&lt;/strong>的，并将used1合并到used中。&lt;/p>
+&lt;p>&lt;strong>3、遍历筛选&lt;/strong>&lt;/p>
+&lt;p>随后，函数会倒序逐个移除系统调用，如果发现移除后，测试用例原功能丧失，则保留该系统调用，跳过对下一个系统调用进行测试。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nb">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="o">--&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">continue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">callIndex0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="p">&amp;lt;&lt;/span> &lt;span class="nx">callIndex&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex&lt;/span>&lt;span class="o">--&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Clone&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">RemoveCall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="c1">//移除克隆者的系统调用&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">!&lt;/span>&lt;span class="nf">pred&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">statMinRemoveCall&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Sprintf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;call %v&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">continue&lt;/span> &lt;span class="c1">//功能丧失则跳过&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">callIndex&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="系统调用参数最小化">系统调用参数最小化
+&lt;/h3>&lt;p>这一部分改天更新。&lt;/p>
+&lt;h2 id="syzkaller的最小化场景">Syzkaller的最小化场景
+&lt;/h2>&lt;p>Syzkaller最小化的场景有如下几种：Fuzz运行时、崩溃复现&lt;/p>
+&lt;h3 id="fuzz运行时">Fuzz运行时
+&lt;/h3>&lt;p>这一部分我们可以看&lt;a class="link" href="https://github.com/google/syzkaller/blob/a55c0058ebb614a710cb236c1b47f30aeb88ab12/pkg/fuzzer/job.go#L343" target="_blank" rel="noopener"
+>job.go中的代码&lt;/a>，从它给prog.minimize传递的pred函数可以发现，这里最小化的功能完整性体现在&lt;strong>经过最小化之后，目标系统调用的覆盖率并没有减小&lt;/strong>。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-go" data-lang="go">&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">call&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Minimize&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">job&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">call&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mode&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kd">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">call1&lt;/span> &lt;span class="kt">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">bool&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">stop&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="kc">false&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">var&lt;/span> &lt;span class="nx">mergedSignal&lt;/span> &lt;span class="nx">signal&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Signal&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="p">&amp;lt;&lt;/span> &lt;span class="nx">minimizeAttempts&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="o">++&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">!&lt;/span>&lt;span class="nf">reexecutionSuccess&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">result&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Info&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">info&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">errno&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">call1&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// The call was not executed or failed.&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">continue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 获取目标call执行后的signal&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">thisSignal&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nf">getSignalAndCover&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">result&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Info&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">call1&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">mergedSignal&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Len&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">mergedSignal&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">thisSignal&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">mergedSignal&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Merge&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">thisSignal&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// signal没有发生变化，signal的长度相等&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">info&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">newStableSignal&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Intersection&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">mergedSignal&lt;/span>&lt;span class="p">).&lt;/span>&lt;span class="nf">Len&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">info&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">newStableSignal&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Len&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="kc">true&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="kc">false&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">})&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>系统调用与系统调用之间存在着隐式与显式的依赖关系，一个系统调用可能会对另一个系统调用产生一些影响，使其执行后的覆盖率发生变化，经过最小化处理后，测试用例会删去那些对目标系统调用无关的系统调用。&lt;/p>
+&lt;h3 id="崩溃复现">崩溃复现
+&lt;/h3>&lt;p>这一部分内容我们可以参考syz-repro工具的原理，在一个测试用例触发崩溃之后，syzkaller会进行最小化，提取出能出发崩溃的最小测试用例。&lt;/p>
+&lt;p>在实现上和上一个流程基本相同，但在调用Minimize函数时，会将callIndex设置为-1，这将跳过切割与无关剔除步骤，直接遍历每个系统调用，观察删去该系统调用之后，崩溃是否还能成功触发。&lt;/p></description></item><item><title>BRF复现</title><link>https://apowerfulmei.github.io/p/hello-brf/</link><pubDate>Sat, 14 Jun 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-brf/</guid><description>&lt;h1 id="brf">BRF
+&lt;/h1>&lt;h2 id="简介">简介
+&lt;/h2>&lt;p>&lt;a class="link" href="https://dl.acm.org/doi/abs/10.1145/3643778" target="_blank" rel="noopener"
+>BRF: Fuzzing the eBPF Runtime&lt;/a> 是一个针对ebpf runtime组件的模糊测试工具。它旨在解决syzkaller对ebpf模糊测试低效的问题，从程序语义、程序依赖、程序执行三个要点出发，生成了有高verifier通过率、以及丰富语义（即包含了一些列helper与map操作）的C程序，并与syzkaller结合，对ebpf进行模糊测试，大大提升了代码覆盖率，并发现了6个新的ebpf漏洞。&lt;/p>
+&lt;p>仓库地址：https://github.com/trusslab/brf&lt;/p>
+&lt;h2 id="环境搭建">环境搭建
+&lt;/h2>&lt;h3 id="基础复现流程">基础复现流程
+&lt;/h3>&lt;p>BRF仓库的README文件提供了详细的复现流程，可以直接按照这个流程走下来。不过在这个过程中，我仍然遇到了一些难以解决的问题。&lt;/p>
+&lt;h3 id="brf编译问题">BRF编译问题
+&lt;/h3>&lt;p>在make BRF源代码时，会产生报错：&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-brf/make_error.png"
+width="1318"
+height="370"
+srcset="https://apowerfulmei.github.io/p/hello-brf/make_error_hu_e2043ff9a8b022c1.png 480w, https://apowerfulmei.github.io/p/hello-brf/make_error_hu_f4ceeb92ad2bd963.png 1024w"
+loading="lazy"
+alt="make_error"
+class="gallery-image"
+data-flex-grow="356"
+data-flex-basis="854px"
+>&lt;/p>
+&lt;p>这个错误产生的原因是libbpf组件没有被正确地配置，我为此提交了一个&lt;a class="link" href="https://github.com/trusslab/brf/pull/49" target="_blank" rel="noopener"
+>PR&lt;/a>，解决的办法也很简单，下载最新的libbpf并安装即可：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">git clone https://github.com/libbpf/libbpf.git
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">cd libbpf/src
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">make
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">make install
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">make install_uapi_headers
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="c代码编译问题">C代码编译问题
+&lt;/h3>&lt;p>按照BRF的配置，生成器生成的ebpf C代码会在&lt;code>$BRF_WORKDIR&lt;/code>下保存，并被挂载到Qemu中，使用clang-16进行编译，生成.o文件。但是实际运行过程中，我发现编译过程并没有被正确执行，可执行文件没有被生成，fuzz流程陷入停滞。&lt;/p>
+&lt;p>手动启动Qemu后，我尝试在虚拟机内用clang-16编译C文件：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">qemu-system-x86_64 \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -m 2G \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -smp 2 \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -kernel $KERNEL/arch/x86/boot/bzImage \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -append &amp;#34;console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0&amp;#34; \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -drive file=$IMAGE/bookworm.img,format=raw \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -net nic,model=e1000 \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -virtfs local,path=$KERNEL,mount_tag=host0,security_model=mapped,id=host0 \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -virtfs local,path=$BRF_WORKDIR,mount_tag=brf,security_model=mapped,id=brf \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -enable-kvm \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -nographic \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> -pidfile vm.pid \
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> 2&amp;gt;&amp;amp;1 | tee vm.log
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">mkdir /mnt/brf_work_dir
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">mount -t 9p -o trans=virtio,version=9p2000.L brf /mnt/brf_work_dir
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">clang -g -O2 -D__TARGET_ARCH_x86 -I/usr/include/$(uname -m)-linux-gnu -Wno-compare-distinct-pointer-types -Wno-int-conversion -target bpf -mcpu=v3 -c ./prog_18488a70d6315a0e.c -o test.o
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>发现确实编译存在问题，似乎也是libbpf的配置问题，但是在前面的基础流程中明明已经安装了libbpf和头文件。不过为了解决这个问题，我还是尝试安装了&lt;code>libbpf-dev&lt;/code>。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">apt install libbpf-dev
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>成功解决了这个问题。&lt;/p>
+&lt;h3 id="c代码语法错误问题">C代码语法错误问题
+&lt;/h3>&lt;p>我发现在生成的C文件中有一些匪夷所思的语法错误，在生成&lt;code>char *&lt;/code>类型的变量时，正确的定义方式应该类似于&lt;code>char v[8]=...&lt;/code>，但实际上变量的定义方式却是&lt;code>char %!p(string=v)[8]=...&lt;/code>。&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-brf/cgrammar_error.png"
+width="1098"
+height="592"
+srcset="https://apowerfulmei.github.io/p/hello-brf/cgrammar_error_hu_d03421ff7447a7c.png 480w, https://apowerfulmei.github.io/p/hello-brf/cgrammar_error_hu_d5fd1a130a29598e.png 1024w"
+loading="lazy"
+alt="c_grammar"
+class="gallery-image"
+data-flex-grow="185"
+data-flex-basis="445px"
+>&lt;/p>
+&lt;p>源码中关于这一部分代码的内容在 &lt;a class="link" href="https://github.com/trusslab/brf/blob/dev/prog/brf_legacy.go#L1308" target="_blank" rel="noopener"
+>prog/brf_legacy.go#L1308&lt;/a> 中：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-gdscript3" data-lang="gdscript3">&lt;span class="line">&lt;span class="cl"> &lt;span class="n">a&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Name&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">fmt&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Sprintf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;v&lt;/span>&lt;span class="si">%d&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">VarId&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">a&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Prepare&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">fmt&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Sprintf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34; char %p[&lt;/span>&lt;span class="si">%d&lt;/span>&lt;span class="s2">] = {};&lt;/span>&lt;span class="se">\n&lt;/span>&lt;span class="s2">&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">a&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Name&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">varSize&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>看起来也并没有什么不妥，为什么会生成这样语法的代码暂时未可知，我的解决办法简单粗暴，修改源代码，识别这样的错误语法并进行修正。&lt;/p>
+&lt;p>在 &lt;a class="link" href="https://github.com/trusslab/brf/blob/dev/prog/brf_prog.go" target="_blank" rel="noopener"
+>prog/brf_prog.go&lt;/a> 中，&lt;code>writeCSource&lt;/code>函数会将生成好的C代码写入文件，我们只需在它写入文件之前将代码字符串改为正确的就可以。我添加了一个函数&lt;code>fixCharError&lt;/code>，它使用正则表达式匹配错误代码，并修改为正确的格式：&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-golang" data-lang="golang">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;encoding/gob&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;fmt&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;os&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;time&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="s">&amp;#34;regexp&amp;#34;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">func&lt;/span> &lt;span class="nf">fixCharError&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">content&lt;/span> &lt;span class="kt">string&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="kt">string&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Printf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;I am trying to fix this: %s&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">content&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">pattern&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">regexp&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">MustCompile&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">`%!p\(string=(\w+)\)\[(\d+)\]`&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// 执行替换操作并返回结果&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">newContent&lt;/span>&lt;span class="o">:=&lt;/span>&lt;span class="nx">pattern&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">ReplaceAllString&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">content&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s">&amp;#34;$1[$2]&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Printf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s">&amp;#34;I fix this: %s\n&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">newContent&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">newContent&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">BpfProg&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nf">writeCSource&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="kt">error&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kd">var&lt;/span> &lt;span class="nx">progSrc&lt;/span> &lt;span class="kt">string&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">UseTestSrc&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">progSrc&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">testSrc&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span> &lt;span class="k">else&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">progSrc&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">genCSource&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">progSrc&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nf">fixCharError&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">progSrc&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">f&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">os&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Create&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">BasePath&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="s">&amp;#34;.c&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="kc">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">defer&lt;/span> &lt;span class="nx">f&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">Close&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">_&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="p">=&lt;/span> &lt;span class="nx">f&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nf">WriteString&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">progSrc&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">err&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="qemu内存大小问题">Qemu内存大小问题
+&lt;/h3>&lt;p>解决了上述问题之后，按理来说，应该可以正常运行并编译生成可执行文件了，但是虚拟机仍然不断产生崩溃，观察了log之后，发现是虚拟机内存不够导致的，修改一下config文件就可以解决啦！把&lt;code>mem&lt;/code>从&lt;code>2048&lt;/code>修改为&lt;code>4096&lt;/code>。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">{
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;target&amp;#34;: &amp;#34;linux/amd64&amp;#34;,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;http&amp;#34;: &amp;#34;127.0.0.1:56741&amp;#34;,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;workdir&amp;#34;: &amp;#34;$SYZKALLER/workdir/bookworm&amp;#34;,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;kernel_obj&amp;#34;: &amp;#34;$KERNEL&amp;#34;,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;image&amp;#34;: &amp;#34;$IMAGE/bookworm.img&amp;#34;,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;sshkey&amp;#34;: &amp;#34;$IMAGE/bookworm.id_rsa&amp;#34;,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;syzkaller&amp;#34;: &amp;#34;$SYZKALLER&amp;#34;,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;procs&amp;#34;: 8,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;type&amp;#34;: &amp;#34;qemu&amp;#34;,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;vm&amp;#34;: {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;count&amp;#34;: 4,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;kernel&amp;#34;: &amp;#34;$KERNEL/arch/x86/boot/bzImage&amp;#34;,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;cpu&amp;#34;: 2,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;mem&amp;#34;: 4096,
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &amp;#34;brf_workdir&amp;#34;: &amp;#34;$BRF_WORKDIR&amp;#34;
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">}
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="运行效果">运行效果
+&lt;/h2>&lt;p>解决了上述问题以后，BRF可以正常跑起来了，在&lt;code>$BRF_WORKDIR&lt;/code>目录下也可以看到正常的C代码以及可执行文件了，可喜可贺。&lt;/p>
+&lt;p>这里我使用的commit是 &lt;code>047d1c9a3e47722ae94afb9f0247a1057c323df3&lt;/code> 。&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/hello-brf/brf_web_1.png"
+width="2548"
+height="1630"
+srcset="https://apowerfulmei.github.io/p/hello-brf/brf_web_1_hu_18b9475ef264d9ca.png 480w, https://apowerfulmei.github.io/p/hello-brf/brf_web_1_hu_c061eefee6f6b839.png 1024w"
+loading="lazy"
+alt="brf_web_1"
+class="gallery-image"
+data-flex-grow="156"
+data-flex-basis="375px"
+>&lt;/p>
+&lt;p>不过相信聪明的你也已经发现了，&lt;strong>为什么coverage是0？&lt;/strong>&lt;/p>
+&lt;p>这是因为在这一个 &lt;a class="link" href="https://github.com/trusslab/brf/commit/047d1c9a3e47722ae94afb9f0247a1057c323df3" target="_blank" rel="noopener"
+>commit&lt;/a> 中，WorkQueue loop相关的代码被注释掉了，&lt;code>triageInput&lt;/code>函数不会被执行，也就不会收集覆盖率以及扩充语料库。&lt;/p>
+&lt;p>从commit的注释&lt;code>&amp;quot;TEST: disable mutation&amp;quot;&lt;/code>似乎可以看出，这个提交只是为了测试brf生成程序以及执行的能力，那我们转移到上一个commit &lt;code>a1f51c55c2c01b5959cfbfc9e44559da5d48551c&lt;/code> 再运行试试。&lt;/p></description></item><item><title>Buzzer Fuzz</title><link>https://apowerfulmei.github.io/p/buzzer/</link><pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/buzzer/</guid><description>&lt;h1 id="buzzer复现">Buzzer复现
+&lt;/h1>&lt;h2 id="1环境搭建">1、环境搭建
+&lt;/h2>&lt;h3 id="11-依赖与工具">1.1 依赖与工具
+&lt;/h3>&lt;p>&lt;a class="link" href="https://bazel.build/install/ubuntu?hl=zh-cn" target="_blank" rel="noopener"
+>bazel&lt;/a>&lt;/p>
+&lt;p>clang安装 我使用的是llvm-10&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;span class="lnt">8
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">bazel&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">install&lt;/span> &lt;span class="nx">apt&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">transport&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">https&lt;/span> &lt;span class="nx">curl&lt;/span> &lt;span class="nx">gnupg&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">y&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">curl&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">fsSL&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="c1">//bazel.build/bazel-release.pub.gpg | gpg --dearmor &amp;gt;bazel-archive-keyring.gpg
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">mv&lt;/span> &lt;span class="nx">bazel&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">archive&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">keyring&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">gpg&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">usr&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">share&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">keyrings&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">echo&lt;/span> &lt;span class="s2">&amp;#34;deb [arch=amd64 signed-by=/usr/share/keyrings/bazel-archive-keyring.gpg] https://storage.googleapis.com/bazel-apt stable jdk1.8&amp;#34;&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="nx">sudo&lt;/span> &lt;span class="nx">tee&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">etc&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">apt&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">sources&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">list&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">d&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bazel&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">list&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">update&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">install&lt;/span> &lt;span class="nx">bazel&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">update&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">full&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">upgrade&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>设置环境变量，设置clang和clang++的路径&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="kr">export&lt;/span> &lt;span class="nx">CC&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">clang&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kr">export&lt;/span> &lt;span class="nx">CXX&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">clang&lt;/span>&lt;span class="o">++&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>运行，使用bazel构建buzzer&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">git&lt;/span> &lt;span class="nx">clone&lt;/span> &lt;span class="nx">https&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="c1">//github.com/google/buzzer.git
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="nx">cd&lt;/span> &lt;span class="nx">buzzer&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">bazel&lt;/span> &lt;span class="nx">build&lt;/span> &lt;span class="o">:&lt;/span>&lt;span class="nx">buzzer&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>build过程中可能会遭遇问题一，需要使用低版本的bazel才可顺利完成build&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image.png"
+width="952"
+height="231"
+srcset="https://apowerfulmei.github.io/p/buzzer/image_hu_eb57c554a7b48315.png 480w, https://apowerfulmei.github.io/p/buzzer/image_hu_798c20148051ea67.png 1024w"
+loading="lazy"
+alt="image.png"
+class="gallery-image"
+data-flex-grow="412"
+data-flex-basis="989px"
+>&lt;/p>
+&lt;h2 id="2run-buzzer-with-coverage">2、run Buzzer with coverage
+&lt;/h2>&lt;p>&lt;a class="link" href="https://github.com/google/buzzer/blob/main/docs/guides/running_with_coverage.md" target="_blank" rel="noopener"
+>https://github.com/google/buzzer/blob/main/docs/guides/running_with_coverage.md&lt;/a>&lt;/p>
+&lt;h3 id="21-准备">2.1 准备
+&lt;/h3>&lt;p>bullseye.img准备&lt;/p>
+&lt;p>linux kernel准备&lt;/p>
+&lt;p>注意：&lt;code>CONFIG_BPF=y&lt;/code> and &lt;code>CONFIG_BPF_SYSCALL=y&lt;/code>&lt;/p>
+&lt;h3 id="22-qemu-vm运行">2.2 qemu vm运行
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">qemu&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">system&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">x86_64&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">m&lt;/span> &lt;span class="mi">20&lt;/span>&lt;span class="nx">G&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">smp&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">cpu&lt;/span> &lt;span class="nx">host&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">kernel&lt;/span> &lt;span class="nx">PATH_TO_KERNEL_REPO&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">arch&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">x86&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">boot&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bzImage&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">append&lt;/span> &lt;span class="s2">&amp;#34;console=ttyS0 root=/dev/sda nokaslr earlyprintk=serial net.ifnames=0&amp;#34;&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">drive&lt;/span> &lt;span class="nx">file&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">PATH_TO_DEBIAN_IMAGE&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">img&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">format&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">raw&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">net&lt;/span> &lt;span class="nx">user&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">host&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">10.0.2.10&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">hostfwd&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">tcp&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mf">127.0.0.1&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mi">10022&lt;/span>&lt;span class="o">-:&lt;/span>&lt;span class="mi">22&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">hostfwd&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">tcp&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mf">0.0.0.0&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mi">8080&lt;/span>&lt;span class="o">-:&lt;/span>&lt;span class="mi">8080&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">net&lt;/span> &lt;span class="nx">nic&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">model&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">e1000&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">enable&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">kvm&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">nographic&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">pidfile&lt;/span> &lt;span class="nx">vm&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">pid&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="mi">2&lt;/span>&lt;span class="o">&amp;gt;&amp;amp;&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="nx">tee&lt;/span> &lt;span class="nx">vm&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">log&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">my&lt;/span> &lt;span class="nx">cmd&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">qemu&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">system&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">x86_64&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">m&lt;/span> &lt;span class="mi">20&lt;/span>&lt;span class="nx">G&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">smp&lt;/span> &lt;span class="mi">2&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">cpu&lt;/span> &lt;span class="nx">host&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">kernel&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">arch&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">x86&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">boot&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bzImage&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">append&lt;/span> &lt;span class="s2">&amp;#34;console=ttyS0 root=/dev/sda nokaslr earlyprintk=serial net.ifnames=0&amp;#34;&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">drive&lt;/span> &lt;span class="nx">file&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="err">/home/ranma/image/stretch.img,format=raw \&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">net&lt;/span> &lt;span class="nx">user&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">host&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="mf">10.0.2.10&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">hostfwd&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">tcp&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mf">127.0.0.1&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mi">10022&lt;/span>&lt;span class="o">-:&lt;/span>&lt;span class="mi">22&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">hostfwd&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">tcp&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mf">0.0.0.0&lt;/span>&lt;span class="o">:&lt;/span>&lt;span class="mi">8080&lt;/span>&lt;span class="o">-:&lt;/span>&lt;span class="mi">8080&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">net&lt;/span> &lt;span class="nx">nic&lt;/span>&lt;span class="p">,&lt;/span>&lt;span class="nx">model&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">e1000&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">enable&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">kvm&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">nographic&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">-&lt;/span>&lt;span class="nx">pidfile&lt;/span> &lt;span class="nx">vm&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">pid&lt;/span> &lt;span class="o">\&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="mi">2&lt;/span>&lt;span class="o">&amp;gt;&amp;amp;&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="nx">tee&lt;/span> &lt;span class="nx">vm&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">log&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>运行成功：&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image1.png"
+width="1610"
+height="340"
+srcset="https://apowerfulmei.github.io/p/buzzer/image1_hu_c64fa3513f4b3449.png 480w, https://apowerfulmei.github.io/p/buzzer/image1_hu_cc590ccc7896d0df.png 1024w"
+loading="lazy"
+alt="image1.png"
+class="gallery-image"
+data-flex-grow="473"
+data-flex-basis="1136px"
+>&lt;/p>
+&lt;h3 id="23-材料准备">2.3 材料准备
+&lt;/h3>&lt;p>向vm中传输一些必要文件，以及必要的准备&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">传输vmlinux&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="nx">PATH_TO_DEBIAN_IMAGE&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="nx">PATH_TO_KERNEL_REPO&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">vmlinux&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">创建目录&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">mkdir&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">root&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">sourceFiles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">传输verifier&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">c文件&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="nx">PATH_TO_DEBIAN_IMAGE&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="nx">PATH_TO_KERNEL_REPO&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bpf&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">verifier&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">c&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/sourceFiles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">传输buzzer&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="nx">PATH_TO_DEBIAN_IMAGE&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="nx">PATH_TO_BUZZER&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">my&lt;/span> &lt;span class="nx">cmd&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">image&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">vmlinux&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">image&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">kernel&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bpf&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">verifier&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">c&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/sourceFiles&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">scp&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">i&lt;/span> &lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">image&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bullseye&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">id_rsa&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">P&lt;/span> &lt;span class="mi">10022&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">home&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">ranma&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">eBPF&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bazel&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="nx">bin&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer_&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer&lt;/span> &lt;span class="nx">root&lt;/span>&lt;span class="err">@&lt;/span>&lt;span class="nx">localhost&lt;/span>&lt;span class="o">:~&lt;/span>&lt;span class="err">/&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="24-buzzer运行">2.4 Buzzer运行
+&lt;/h3>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">strategy&lt;/span>&lt;span class="o">=&lt;/span>&lt;span class="nx">pointer_arithmetic&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="err">#&lt;/span> &lt;span class="nx">直接运行&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">buzzer默认使用playground策略&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">没什么实际效果&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>运行效果：&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image2.png"
+width="2224"
+height="593"
+srcset="https://apowerfulmei.github.io/p/buzzer/image2_hu_b27022f4e963322.png 480w, https://apowerfulmei.github.io/p/buzzer/image2_hu_3be5ba14fafb34b4.png 1024w"
+loading="lazy"
+alt="image2.png"
+class="gallery-image"
+data-flex-grow="375"
+data-flex-basis="900px"
+>&lt;/p>
+&lt;h2 id="报错">报错
+&lt;/h2>&lt;h3 id="错误1">错误1
+&lt;/h3>&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image3.png"
+width="2201"
+height="677"
+srcset="https://apowerfulmei.github.io/p/buzzer/image3_hu_2b9dc522df7752cf.png 480w, https://apowerfulmei.github.io/p/buzzer/image3_hu_9000c4ba7595d479.png 1024w"
+loading="lazy"
+alt="image3.png"
+class="gallery-image"
+data-flex-grow="325"
+data-flex-basis="780px"
+>&lt;/p>
+&lt;p>看上去似乎是bazel版本过高带来的问题，安装低版本的7.4.0 bazel即可解决&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">apt&lt;/span> &lt;span class="nx">install&lt;/span> &lt;span class="nx">bazel&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">7.4.0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">sudo&lt;/span> &lt;span class="nx">ln&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="nx">s&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">usr&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bin&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bazel&lt;/span>&lt;span class="o">-&lt;/span>&lt;span class="mf">7.4.0&lt;/span> &lt;span class="o">/&lt;/span>&lt;span class="nx">usr&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bin&lt;/span>&lt;span class="o">/&lt;/span>&lt;span class="nx">bazel&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h3 id="错误2">错误2
+&lt;/h3>&lt;p>传输文件vmlinux遇到qemu空间不足&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image4.png"
+width="2209"
+height="153"
+srcset="https://apowerfulmei.github.io/p/buzzer/image4_hu_1501bbc8aefc5ae.png 480w, https://apowerfulmei.github.io/p/buzzer/image4_hu_e71f66535c93ee56.png 1024w"
+loading="lazy"
+alt="image4.png"
+class="gallery-image"
+data-flex-grow="1443"
+data-flex-basis="3465px"
+>&lt;/p>
+&lt;p>使用create-image.sh创建一个/root空间更大的image，修改SEEK参数，这里改为4G&lt;/p>
+&lt;p>&lt;img src="https://apowerfulmei.github.io/p/buzzer/image5.png"
+width="509"
+height="236"
+srcset="https://apowerfulmei.github.io/p/buzzer/image5_hu_961b267e10eedfcb.png 480w, https://apowerfulmei.github.io/p/buzzer/image5_hu_24a290aa08177cb1.png 1024w"
+loading="lazy"
+alt="image5.png"
+class="gallery-image"
+data-flex-grow="215"
+data-flex-basis="517px"
+>&lt;/p>
+&lt;h3 id="错误3">错误3
+&lt;/h3>&lt;p>运行./buzzer之后没有反应&lt;/p>
+&lt;p>&lt;a class="link" href="https://github.com/google/buzzer/issues/58" target="_blank" rel="noopener"
+>https://github.com/google/buzzer/issues/58&lt;/a>&lt;/p></description></item><item><title>Syz-repro</title><link>https://apowerfulmei.github.io/p/syz-repro/</link><pubDate>Thu, 29 May 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/syz-repro/</guid><description>&lt;h1 id="syz-repro分析">Syz-Repro分析
+&lt;/h1>&lt;p>&lt;a class="link" href="https://github.com/google/syzkaller/blob/master/tools/syz-repro/repro.go" target="_blank" rel="noopener"
+>syzkaller/tools/syz-repro/repro.go at master · google/syzkaller&lt;/a>&lt;/p>
+&lt;h2 id="syz-repro的使用">syz-repro的使用
+&lt;/h2>&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl">./bin/syz-repro -config=my.cfg /path/to/crash/log
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>使用syz-repro对log中包含的prog进行复现，这个流程包括&lt;/p>
+&lt;p>1、提取出可以触发crash的初始prog&lt;/p>
+&lt;p>2、对这个prog进行简化，基本采用的是逐个syscall削减简化&lt;/p>
+&lt;p>3、对prog的参数等进行简化&lt;/p>
+&lt;p>4、将prog转化为C poc&lt;/p>
+&lt;p>5、对C poc进行简化&lt;/p>
+&lt;h2 id="程序最小化">程序最小化
+&lt;/h2>&lt;p>pkg/repro/repro.go Run runInner reproCtx.run()&lt;/p>
+&lt;p>minimizeProg对extract出来的程序进行minimize，在这之中调用prog.Minimize进行简化&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="c1">// Minimize calls and arguments.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span>&lt;span class="nx">func&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="nx">ctx&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">reproContext&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">minimizeProg&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">res&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">Result&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">Result&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">error&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">reproLogf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;minimizing guilty program&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">start&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Now&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">defer&lt;/span> &lt;span class="nx">func&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">stats&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MinimizeProgTime&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">time&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Since&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">start&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">mode&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MinimizeCrash&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">fast&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">mode&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">MinimizeCallsOnly&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">_&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Minimize&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">mode&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">func&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">prog&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex&lt;/span> &lt;span class="kr">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="nx">bool&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// We do want to keep at least one call, otherwise tools/syz-execprog
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// will immediately exit.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">return&lt;/span> &lt;span class="kc">false&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ret&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">testProg&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Duration&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">res&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Opts&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kc">false&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">err&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="nx">nil&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">ctx&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">reproLogf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">2&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;minimization failed with %v&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">err&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="kc">false&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">ret&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Crashed&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">})&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">res&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">nil&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;p>这里会调用prog中的Minimize函数对程序进行简化&lt;/p>
+&lt;p>包含的参数：&lt;/p>
+&lt;p>1、prog 程序列表&lt;/p>
+&lt;p>2、index 开始简化的syscall下标&lt;/p>
+&lt;p>3、mode 简化模式&lt;/p>
+&lt;p>4、pred 测试函数，这个函数会对简化后的程序进行测试，观察其能否触发Bug&lt;/p>
+&lt;p>prog minimization.go中&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;span class="lnt">21
+&lt;/span>&lt;span class="lnt">22
+&lt;/span>&lt;span class="lnt">23
+&lt;/span>&lt;span class="lnt">24
+&lt;/span>&lt;span class="lnt">25
+&lt;/span>&lt;span class="lnt">26
+&lt;/span>&lt;span class="lnt">27
+&lt;/span>&lt;span class="lnt">28
+&lt;/span>&lt;span class="lnt">29
+&lt;/span>&lt;span class="lnt">30
+&lt;/span>&lt;span class="lnt">31
+&lt;/span>&lt;span class="lnt">32
+&lt;/span>&lt;span class="lnt">33
+&lt;/span>&lt;span class="lnt">34
+&lt;/span>&lt;span class="lnt">35
+&lt;/span>&lt;span class="lnt">36
+&lt;/span>&lt;span class="lnt">37
+&lt;/span>&lt;span class="lnt">38
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">Minimize函数中调用removeCalls进行简化&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">移除不必要的&lt;/span> &lt;span class="nx">syscall&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">removeCalls&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pred&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nx">func&lt;/span> &lt;span class="nx">removeCalls&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span> &lt;span class="o">*&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="kr">int&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pred&lt;/span> &lt;span class="nx">minimizePred&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">(&lt;/span>&lt;span class="o">*&lt;/span>&lt;span class="nx">Prog&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="kr">int&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="mi">0&lt;/span> &lt;span class="o">&amp;amp;&amp;amp;&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="o">+&lt;/span>&lt;span class="mi">2&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">// It&amp;#39;s frequently the case that all subsequent calls were not necessary.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="c1">// Try to drop them all at once.
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="nx">p&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Clone&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;gt;&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="o">--&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">RemoveCall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">pred&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">statMinRemoveCall&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="s2">&amp;#34;trailing calls&amp;#34;&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">!=&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">removeUnrelatedCalls&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">pred&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="c1">//这里可以看到是逐个syscall尝试进行移除的
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1">&lt;/span> &lt;span class="k">for&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">len&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Calls&lt;/span>&lt;span class="p">)&lt;/span> &lt;span class="o">-&lt;/span> &lt;span class="mi">1&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;gt;=&lt;/span> &lt;span class="mi">0&lt;/span>&lt;span class="p">;&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="o">--&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">continue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">callIndex0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="nx">i&lt;/span> &lt;span class="o">&amp;lt;&lt;/span> &lt;span class="nx">callIndex&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex&lt;/span>&lt;span class="o">--&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span> &lt;span class="o">:=&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Clone&lt;/span>&lt;span class="p">()&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">RemoveCall&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">i&lt;/span>&lt;span class="p">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">if&lt;/span> &lt;span class="o">!&lt;/span>&lt;span class="nx">pred&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="nx">p&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">statMinRemoveCall&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">fmt&lt;/span>&lt;span class="p">.&lt;/span>&lt;span class="nx">Sprintf&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;call %v&amp;#34;&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">i&lt;/span>&lt;span class="p">))&lt;/span> &lt;span class="p">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">continue&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">p0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">p&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nx">callIndex0&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="nx">callIndex&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="nx">p0&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="nx">callIndex0&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="p">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="对crash-log的处理">对crash log的处理
+&lt;/h2>&lt;p>log里面存放的内容：&lt;/p>
+&lt;p>1、minimize之前的prog&lt;/p>
+&lt;p>2、minimize这个过程的prog，以及是否crashed&lt;/p>
+&lt;p>3、C程序的生成以及minimize&lt;/p>
+&lt;p>minimize的方式&lt;/p>
+&lt;p>prog/minimization.go Minimize对程序进行minimize处理&lt;/p>
+&lt;p>处理log的方式&lt;/p>
+&lt;p>prog/parse.go ParseLog对log文件进行处理&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt">1
+&lt;/span>&lt;span class="lnt">2
+&lt;/span>&lt;span class="lnt">3
+&lt;/span>&lt;span class="lnt">4
+&lt;/span>&lt;span class="lnt">5
+&lt;/span>&lt;span class="lnt">6
+&lt;/span>&lt;span class="lnt">7
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-jsx" data-lang="jsx">&lt;span class="line">&lt;span class="cl">&lt;span class="nx">函数&lt;/span> &lt;span class="sb">`ParseLog`&lt;/span> &lt;span class="nx">处理日志的方式如下&lt;/span>&lt;span class="err">：&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">1.&lt;/span> &lt;span class="nx">初始化一个&lt;/span> &lt;span class="sb">`LogEntry`&lt;/span> &lt;span class="nx">结构体和一些变量&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">2.&lt;/span> &lt;span class="nx">通过循环逐行读取日志数据&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">3.&lt;/span> &lt;span class="nx">如果行中包含&lt;/span> &lt;span class="s2">&amp;#34;executing program &amp;#34;&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">则解析并创建一个新的&lt;/span> &lt;span class="sb">`LogEntry`&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">4.&lt;/span> &lt;span class="nx">将当前行追加到&lt;/span> &lt;span class="sb">`cur`&lt;/span> &lt;span class="nx">中&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">并尝试反序列化为程序&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">5.&lt;/span> &lt;span class="nx">如果反序列化成功并且存在故障调用&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">则设置相应的故障属性&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="mf">6.&lt;/span> &lt;span class="nx">最后&lt;/span>&lt;span class="err">，&lt;/span>&lt;span class="nx">将所有解析的&lt;/span> &lt;span class="sb">`LogEntry`&lt;/span> &lt;span class="nx">返回&lt;/span>&lt;span class="err">。&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div>&lt;h2 id="log处理">Log处理
+&lt;/h2>&lt;p>可以只在log里面放一个最原始的未简化的prog&lt;/p>
+&lt;p>后面程序会先尝试复现这个prog，并且会记录所有相关的时间&lt;/p>
+&lt;p>实验测试结果&lt;/p>
+&lt;h2 id="结果保存">结果保存
+&lt;/h2>&lt;p>复现的结果保存到相关的文件里。&lt;/p>
+&lt;div class="highlight">&lt;div class="chroma">
+&lt;table class="lntable">&lt;tr>&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code>&lt;span class="lnt"> 1
+&lt;/span>&lt;span class="lnt"> 2
+&lt;/span>&lt;span class="lnt"> 3
+&lt;/span>&lt;span class="lnt"> 4
+&lt;/span>&lt;span class="lnt"> 5
+&lt;/span>&lt;span class="lnt"> 6
+&lt;/span>&lt;span class="lnt"> 7
+&lt;/span>&lt;span class="lnt"> 8
+&lt;/span>&lt;span class="lnt"> 9
+&lt;/span>&lt;span class="lnt">10
+&lt;/span>&lt;span class="lnt">11
+&lt;/span>&lt;span class="lnt">12
+&lt;/span>&lt;span class="lnt">13
+&lt;/span>&lt;span class="lnt">14
+&lt;/span>&lt;span class="lnt">15
+&lt;/span>&lt;span class="lnt">16
+&lt;/span>&lt;span class="lnt">17
+&lt;/span>&lt;span class="lnt">18
+&lt;/span>&lt;span class="lnt">19
+&lt;/span>&lt;span class="lnt">20
+&lt;/span>&lt;/code>&lt;/pre>&lt;/td>
+&lt;td class="lntd">
+&lt;pre tabindex="0" class="chroma">&lt;code class="language-fallback" data-lang="fallback">&lt;span class="line">&lt;span class="cl"> fmt.Printf(&amp;#34;opts: %+v crepro: %v\n\n&amp;#34;, res.Opts, res.CRepro)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> //将程序序列化，写入相关文件
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> progSerialized := res.Prog.Serialize()
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> fmt.Printf(&amp;#34;%s\n&amp;#34;, progSerialized)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if err = osutil.WriteFile(*flagOutput, progSerialized); err == nil {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> fmt.Printf(&amp;#34;program saved to %s\n&amp;#34;, *flagOutput)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> } else {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> log.Logf(0, &amp;#34;failed to write prog to file: %v&amp;#34;, err)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if res.Report != nil &amp;amp;&amp;amp; *flagTitle != &amp;#34;&amp;#34; {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> recordTitle(res, *flagTitle)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if res.CRepro {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> recordCRepro(res, *flagCRepro)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> if *flagStrace != &amp;#34;&amp;#34; {
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> result := repro.RunStrace(res, cfg, reporter, pool)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> recordStraceResult(result, *flagStrace)
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> }
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/td>&lt;/tr>&lt;/table>
+&lt;/div>
+&lt;/div></description></item></channel></rss>

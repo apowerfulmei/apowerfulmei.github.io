@@ -1,0 +1,186 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="BRF复现"><title>BRF复现</title><link rel=canonical href=https://apowerfulmei.github.io/p/hello-brf/><link rel=stylesheet href=/scss/style.min.946cca6c6259ef94ac55abfae7c7bf3291ea3ed5eea17ef77500b257217c6710.css><meta property='og:title' content="BRF复现"><meta property='og:description' content="BRF复现"><meta property='og:url' content='https://apowerfulmei.github.io/p/hello-brf/'><meta property='og:site_name' content='apowerfulmei'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='Fuzz'><meta property='article:published_time' content='2025-06-14T00:00:00+00:00'><meta property='article:modified_time' content='2025-06-14T00:00:00+00:00'><meta name=twitter:title content="BRF复现"><meta name=twitter:description content="BRF复现"><link rel="shortcut icon" href=/favicon.png></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label="Toggle Menu">
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/img/d2_hu_b08a843ac8a559c0.jpg width=300 height=295 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🍥</span></figure><div class=site-meta><h1 class=site-name><a href=/>apowerfulmei</a></h1><h2 class=site-description>一些日常记录。</h2></div></header><ol class=menu-social><li><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://twitter.com target=_blank title=Twitter rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/projects/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Projects</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>Dark Mode</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">Table of contents</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#简介>简介</a></li><li><a href=#环境搭建>环境搭建</a><ol><li><a href=#基础复现流程>基础复现流程</a></li><li><a href=#brf编译问题>BRF编译问题</a></li><li><a href=#c代码编译问题>C代码编译问题</a></li><li><a href=#c代码语法错误问题>C代码语法错误问题</a></li><li><a href=#qemu内存大小问题>Qemu内存大小问题</a></li></ol></li><li><a href=#运行效果>运行效果</a></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/fuzz/ style=background-color:#2a9d8f;color:#fff>Fuzz</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/p/hello-brf/>BRF复现</a></h2><h3 class=article-subtitle>BRF复现</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Jun 14, 2025</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>2 minute read</time></div></footer></div></header><section class=article-content><h1 id=brf>BRF</h1><h2 id=简介>简介</h2><p><a class=link href=https://dl.acm.org/doi/abs/10.1145/3643778 target=_blank rel=noopener>BRF: Fuzzing the eBPF Runtime</a> 是一个针对ebpf runtime组件的模糊测试工具。它旨在解决syzkaller对ebpf模糊测试低效的问题，从程序语义、程序依赖、程序执行三个要点出发，生成了有高verifier通过率、以及丰富语义（即包含了一些列helper与map操作）的C程序，并与syzkaller结合，对ebpf进行模糊测试，大大提升了代码覆盖率，并发现了6个新的ebpf漏洞。</p><p>仓库地址：https://github.com/trusslab/brf</p><h2 id=环境搭建>环境搭建</h2><h3 id=基础复现流程>基础复现流程</h3><p>BRF仓库的README文件提供了详细的复现流程，可以直接按照这个流程走下来。不过在这个过程中，我仍然遇到了一些难以解决的问题。</p><h3 id=brf编译问题>BRF编译问题</h3><p>在make BRF源代码时，会产生报错：</p><p><img src=/p/hello-brf/make_error.png width=1318 height=370 srcset="/p/hello-brf/make_error_hu_e2043ff9a8b022c1.png 480w, /p/hello-brf/make_error_hu_f4ceeb92ad2bd963.png 1024w" loading=lazy alt=make_error class=gallery-image data-flex-grow=356 data-flex-basis=854px></p><p>这个错误产生的原因是libbpf组件没有被正确地配置，我为此提交了一个<a class=link href=https://github.com/trusslab/brf/pull/49 target=_blank rel=noopener>PR</a>，解决的办法也很简单，下载最新的libbpf并安装即可：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>git clone https://github.com/libbpf/libbpf.git
+</span></span><span class=line><span class=cl>cd libbpf/src
+</span></span><span class=line><span class=cl>make
+</span></span><span class=line><span class=cl>make install
+</span></span><span class=line><span class=cl>make install_uapi_headers
+</span></span></code></pre></td></tr></table></div></div><h3 id=c代码编译问题>C代码编译问题</h3><p>按照BRF的配置，生成器生成的ebpf C代码会在<code>$BRF_WORKDIR</code>下保存，并被挂载到Qemu中，使用clang-16进行编译，生成.o文件。但是实际运行过程中，我发现编译过程并没有被正确执行，可执行文件没有被生成，fuzz流程陷入停滞。</p><p>手动启动Qemu后，我尝试在虚拟机内用clang-16编译C文件：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>qemu-system-x86_64 \
+</span></span><span class=line><span class=cl>        -m 2G \
+</span></span><span class=line><span class=cl>        -smp 2 \
+</span></span><span class=line><span class=cl>        -kernel $KERNEL/arch/x86/boot/bzImage \
+</span></span><span class=line><span class=cl>        -append &#34;console=ttyS0 root=/dev/sda earlyprintk=serial net.ifnames=0&#34; \
+</span></span><span class=line><span class=cl>        -drive file=$IMAGE/bookworm.img,format=raw \
+</span></span><span class=line><span class=cl>        -net user,host=10.0.2.10,hostfwd=tcp:127.0.0.1:10021-:22 \
+</span></span><span class=line><span class=cl>        -net nic,model=e1000 \
+</span></span><span class=line><span class=cl>	    -virtfs local,path=$KERNEL,mount_tag=host0,security_model=mapped,id=host0 \
+</span></span><span class=line><span class=cl>        -virtfs local,path=$BRF_WORKDIR,mount_tag=brf,security_model=mapped,id=brf \
+</span></span><span class=line><span class=cl>        -enable-kvm \
+</span></span><span class=line><span class=cl>        -nographic \
+</span></span><span class=line><span class=cl>        -pidfile vm.pid \
+</span></span><span class=line><span class=cl>        2&gt;&amp;1 | tee vm.log
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>mkdir /mnt/brf_work_dir
+</span></span><span class=line><span class=cl>mount -t 9p -o trans=virtio,version=9p2000.L brf /mnt/brf_work_dir
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>clang -g -O2 -D__TARGET_ARCH_x86 -I/usr/include/$(uname -m)-linux-gnu -Wno-compare-distinct-pointer-types -Wno-int-conversion -target bpf -mcpu=v3 -c ./prog_18488a70d6315a0e.c -o test.o
+</span></span></code></pre></td></tr></table></div></div><p>发现确实编译存在问题，似乎也是libbpf的配置问题，但是在前面的基础流程中明明已经安装了libbpf和头文件。不过为了解决这个问题，我还是尝试安装了<code>libbpf-dev</code>。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>apt install libbpf-dev
+</span></span></code></pre></td></tr></table></div></div><p>成功解决了这个问题。</p><h3 id=c代码语法错误问题>C代码语法错误问题</h3><p>我发现在生成的C文件中有一些匪夷所思的语法错误，在生成<code>char *</code>类型的变量时，正确的定义方式应该类似于<code>char v[8]=...</code>，但实际上变量的定义方式却是<code>char %!p(string=v)[8]=...</code>。</p><p><img src=/p/hello-brf/cgrammar_error.png width=1098 height=592 srcset="/p/hello-brf/cgrammar_error_hu_d03421ff7447a7c.png 480w, /p/hello-brf/cgrammar_error_hu_d5fd1a130a29598e.png 1024w" loading=lazy alt=c_grammar class=gallery-image data-flex-grow=185 data-flex-basis=445px></p><p>源码中关于这一部分代码的内容在 <a class=link href=https://github.com/trusslab/brf/blob/dev/prog/brf_legacy.go#L1308 target=_blank rel=noopener>prog/brf_legacy.go#L1308</a> 中：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-gdscript3 data-lang=gdscript3><span class=line><span class=cl>	<span class=n>a</span><span class=o>.</span><span class=n>Name</span> <span class=o>=</span> <span class=n>fmt</span><span class=o>.</span><span class=n>Sprintf</span><span class=p>(</span><span class=s2>&#34;v</span><span class=si>%d</span><span class=s2>&#34;</span><span class=p>,</span> <span class=n>p</span><span class=o>.</span><span class=n>VarId</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>	<span class=n>a</span><span class=o>.</span><span class=n>Prepare</span> <span class=o>=</span> <span class=n>fmt</span><span class=o>.</span><span class=n>Sprintf</span><span class=p>(</span><span class=s2>&#34;	char %p[</span><span class=si>%d</span><span class=s2>] = {};</span><span class=se>\n</span><span class=s2>&#34;</span><span class=p>,</span> <span class=n>a</span><span class=o>.</span><span class=n>Name</span><span class=p>,</span> <span class=n>varSize</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>看起来也并没有什么不妥，为什么会生成这样语法的代码暂时未可知，我的解决办法简单粗暴，修改源代码，识别这样的错误语法并进行修正。</p><p>在 <a class=link href=https://github.com/trusslab/brf/blob/dev/prog/brf_prog.go target=_blank rel=noopener>prog/brf_prog.go</a> 中，<code>writeCSource</code>函数会将生成好的C代码写入文件，我们只需在它写入文件之前将代码字符串改为正确的就可以。我添加了一个函数<code>fixCharError</code>，它使用正则表达式匹配错误代码，并修改为正确的格式：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-golang data-lang=golang><span class=line><span class=cl><span class=kn>import</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;encoding/gob&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;fmt&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;os&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;time&#34;</span>
+</span></span><span class=line><span class=cl>        <span class=s>&#34;regexp&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=nf>fixCharError</span><span class=p>(</span><span class=nx>content</span> <span class=kt>string</span><span class=p>)</span> <span class=kt>string</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=nx>fmt</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;I am trying to fix this: %s&#34;</span><span class=p>,</span><span class=nx>content</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=nx>pattern</span> <span class=o>:=</span> <span class=nx>regexp</span><span class=p>.</span><span class=nf>MustCompile</span><span class=p>(</span><span class=s>`%!p\(string=(\w+)\)\[(\d+)\]`</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=c1>// 执行替换操作并返回结果</span>
+</span></span><span class=line><span class=cl>        <span class=nx>newContent</span><span class=o>:=</span><span class=nx>pattern</span><span class=p>.</span><span class=nf>ReplaceAllString</span><span class=p>(</span><span class=nx>content</span><span class=p>,</span> <span class=s>&#34;$1[$2]&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=nx>fmt</span><span class=p>.</span><span class=nf>Printf</span><span class=p>(</span><span class=s>&#34;I fix this: %s\n&#34;</span><span class=p>,</span><span class=nx>newContent</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nx>newContent</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kd>func</span> <span class=p>(</span><span class=nx>p</span> <span class=o>*</span><span class=nx>BpfProg</span><span class=p>)</span> <span class=nf>writeCSource</span><span class=p>()</span> <span class=kt>error</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>        <span class=kd>var</span> <span class=nx>progSrc</span> <span class=kt>string</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=p>(</span><span class=nx>p</span><span class=p>.</span><span class=nx>UseTestSrc</span><span class=p>)</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=nx>progSrc</span> <span class=p>=</span> <span class=nx>testSrc</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span> <span class=k>else</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=nx>progSrc</span> <span class=p>=</span> <span class=nx>p</span><span class=p>.</span><span class=nf>genCSource</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=nx>progSrc</span> <span class=p>=</span> <span class=nf>fixCharError</span><span class=p>(</span><span class=nx>progSrc</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=nx>f</span><span class=p>,</span> <span class=nx>err</span> <span class=o>:=</span> <span class=nx>os</span><span class=p>.</span><span class=nf>Create</span><span class=p>(</span><span class=nx>p</span><span class=p>.</span><span class=nx>BasePath</span> <span class=o>+</span> <span class=s>&#34;.c&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>if</span> <span class=nx>err</span> <span class=o>!=</span> <span class=kc>nil</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>                <span class=k>return</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl>        <span class=p>}</span>
+</span></span><span class=line><span class=cl>        <span class=k>defer</span> <span class=nx>f</span><span class=p>.</span><span class=nf>Close</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>        <span class=nx>_</span><span class=p>,</span> <span class=nx>err</span> <span class=p>=</span> <span class=nx>f</span><span class=p>.</span><span class=nf>WriteString</span><span class=p>(</span><span class=nx>progSrc</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>        <span class=k>return</span> <span class=nx>err</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=qemu内存大小问题>Qemu内存大小问题</h3><p>解决了上述问题之后，按理来说，应该可以正常运行并编译生成可执行文件了，但是虚拟机仍然不断产生崩溃，观察了log之后，发现是虚拟机内存不够导致的，修改一下config文件就可以解决啦！把<code>mem</code>从<code>2048</code>修改为<code>4096</code>。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>{
+</span></span><span class=line><span class=cl>        &#34;target&#34;: &#34;linux/amd64&#34;,
+</span></span><span class=line><span class=cl>        &#34;http&#34;: &#34;127.0.0.1:56741&#34;,
+</span></span><span class=line><span class=cl>        &#34;workdir&#34;: &#34;$SYZKALLER/workdir/bookworm&#34;,
+</span></span><span class=line><span class=cl>        &#34;kernel_obj&#34;: &#34;$KERNEL&#34;,
+</span></span><span class=line><span class=cl>        &#34;image&#34;: &#34;$IMAGE/bookworm.img&#34;,
+</span></span><span class=line><span class=cl>        &#34;sshkey&#34;: &#34;$IMAGE/bookworm.id_rsa&#34;,
+</span></span><span class=line><span class=cl>        &#34;syzkaller&#34;: &#34;$SYZKALLER&#34;,
+</span></span><span class=line><span class=cl>        &#34;procs&#34;: 8,
+</span></span><span class=line><span class=cl>        &#34;type&#34;: &#34;qemu&#34;,
+</span></span><span class=line><span class=cl>        &#34;vm&#34;: {
+</span></span><span class=line><span class=cl>                &#34;count&#34;: 4,
+</span></span><span class=line><span class=cl>                &#34;kernel&#34;: &#34;$KERNEL/arch/x86/boot/bzImage&#34;,
+</span></span><span class=line><span class=cl>                &#34;cpu&#34;: 2,
+</span></span><span class=line><span class=cl>                &#34;mem&#34;: 4096,
+</span></span><span class=line><span class=cl>		&#34;brf_workdir&#34;: &#34;$BRF_WORKDIR&#34;
+</span></span><span class=line><span class=cl>        }
+</span></span><span class=line><span class=cl>}
+</span></span></code></pre></td></tr></table></div></div><h2 id=运行效果>运行效果</h2><p>解决了上述问题以后，BRF可以正常跑起来了，在<code>$BRF_WORKDIR</code>目录下也可以看到正常的C代码以及可执行文件了，可喜可贺。</p><p>这里我使用的commit是 <code>047d1c9a3e47722ae94afb9f0247a1057c323df3</code> 。</p><p><img src=/p/hello-brf/brf_web_1.png width=2548 height=1630 srcset="/p/hello-brf/brf_web_1_hu_18b9475ef264d9ca.png 480w, /p/hello-brf/brf_web_1_hu_c061eefee6f6b839.png 1024w" loading=lazy alt=brf_web_1 class=gallery-image data-flex-grow=156 data-flex-basis=375px></p><p>不过相信聪明的你也已经发现了，<strong>为什么coverage是0？</strong></p><p>这是因为在这一个 <a class=link href=https://github.com/trusslab/brf/commit/047d1c9a3e47722ae94afb9f0247a1057c323df3 target=_blank rel=noopener>commit</a> 中，WorkQueue loop相关的代码被注释掉了，<code>triageInput</code>函数不会被执行，也就不会收集覆盖率以及扩充语料库。</p><p>从commit的注释<code>"TEST: disable mutation"</code>似乎可以看出，这个提交只是为了测试brf生成程序以及执行的能力，那我们转移到上一个commit <code>a1f51c55c2c01b5959cfbfc9e44559da5d48551c</code> 再运行试试。</p></section><footer class=article-footer><section class=article-tags><a href=/tags/fuzz/>Fuzz</a></section><section class=article-copyright><svg class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-SA 4.0</span></section><section class=article-lastmod><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<span>Last updated on Jun 14, 2025 00:00 UTC</span></section><section>View: <span id=busuanzi_value_page_pv>Loading</span></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>Related content</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/p/syz-minimization/><div class=article-details><h2 class=article-title>Syzkaller Testcase Minimization</h2></div></a></article><article><a href=/p/buzzer/><div class=article-details><h2 class=article-title>Buzzer Fuzz</h2></div></a></article><article><a href=/p/syz-repro/><div class=article-details><h2 class=article-title>Syz-repro</h2></div></a></article></div></div></aside><script src=https://giscus.app/client.js data-repo=apowerfulmei/apowerfulmei.github.io data-repo-id=R_kgDOOyWt8Q data-category=Announcements data-category-id=DIC_kwDOOyWt8c4CrPHr data-mapping=pathname data-strict=0 data-reactions-enabled=1 data-emit-metadata=0 data-input-position=top data-theme=light data-lang=en data-loading crossorigin=anonymous async></script><script>function setGiscusTheme(e){let t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:{setConfig:{theme:e}}},"https://giscus.app")}(function(){addEventListener("message",t=>{if(event.origin!=="https://giscus.app")return;e()}),window.addEventListener("onColorSchemeChange",e);function e(){setGiscusTheme(document.documentElement.dataset.scheme==="light"?"light":"dark")}})()</script><footer class=site-footer><section class=copyright>&copy;
+2024 -
+2025 apowerfulmei</section><section class=powerby>总访客数：<span id=busuanzi_value_site_uv style=margin-right:50px>Loading</span> 总访问量：<span id=busuanzi_value_site_pv style=margin-right:50px>Loading</span>
+<a href=https://cloud.umami.is/share/Bjf4XBFngV0tHdVS/apowerfulmei.github.io style=color:blue target=_blank>访问详细统计</a><br><span id=span_show_age style=margin-right:50px><br>Built with <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a><br>Theme <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.30.0>Stack</a></b> designed by <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a></section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script><script defer src=https://cn.vercount.one/js></script><script defer src=https://cloud.umami.is/script.js data-website-id=4daf7b3c-b00f-4f08-833d-af909c284828></script></body></html>

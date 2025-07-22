@@ -1,0 +1,233 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="pwn web相关部分的记录"><title>pwn.college web</title><link rel=canonical href=https://apowerfulmei.github.io/p/hello-pwn-web/><link rel=stylesheet href=/scss/style.min.946cca6c6259ef94ac55abfae7c7bf3291ea3ed5eea17ef77500b257217c6710.css><meta property='og:title' content="pwn.college web"><meta property='og:description' content="pwn web相关部分的记录"><meta property='og:url' content='https://apowerfulmei.github.io/p/hello-pwn-web/'><meta property='og:site_name' content='apowerfulmei'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='PWN'><meta property='article:tag' content='Web'><meta property='article:published_time' content='2025-06-30T00:00:00+00:00'><meta property='article:modified_time' content='2025-06-30T00:00:00+00:00'><meta name=twitter:title content="pwn.college web"><meta name=twitter:description content="pwn web相关部分的记录"><link rel="shortcut icon" href=/favicon.png></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label="Toggle Menu">
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/img/d2_hu_b08a843ac8a559c0.jpg width=300 height=295 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🍥</span></figure><div class=site-meta><h1 class=site-name><a href=/>apowerfulmei</a></h1><h2 class=site-description>一些日常记录。</h2></div></header><ol class=menu-social><li><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://twitter.com target=_blank title=Twitter rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/projects/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Projects</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>Dark Mode</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">Table of contents</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#playing-with-programs---talking-web>Playing With Programs - Talking Web</a><ol><li><a href=#level1---level4>level1 - level4</a></li><li><a href=#level5---level6>level5 - level6</a></li><li><a href=#level7>level7</a></li><li><a href=#level8>level8</a></li><li><a href=#level9-level11>level9-level11</a></li><li><a href=#level12>level12</a></li><li><a href=#level13-15>level13-15</a></li><li><a href=#level16-level22>level16-level22</a></li><li><a href=#level23-level25>level23-level25</a></li><li><a href=#level26-level28>level26-level28</a></li><li><a href=#level29-level36>level29-level36</a></li></ol></li><li><a href=#web-security---intro-to-cybersecurity>Web Security - Intro to Cybersecurity</a><ol><li><a href=#path-traversal-1-2>Path Traversal 1-2</a></li><li><a href=#cmdi-1-6>CMDi 1-6</a></li></ol></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/pwn/ style=background-color:#2a9d8f;color:#fff>PWN</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/p/hello-pwn-web/>pwn.college web</a></h2><h3 class=article-subtitle>pwn web相关部分的记录</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Jun 30, 2025</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>3 minute read</time></div></footer></div></header><section class=article-content><h1 id=pwn-web>PWN Web</h1><p>我将在这里记录pwn.college中和web相关部分的练习。</p><h2 id=playing-with-programs---talking-web>Playing With Programs - Talking Web</h2><p>这一章节涉及到的是一些web相关的程序以及命令的基础用法，为后面进阶的内容打基础。</p><h3 id=level1---level4>level1 - level4</h3><p>这部分内容比较简单，就跳过了。</p><h3 id=level5---level6>level5 - level6</h3><p>这一关用到了<code>netcat</code>，也就是<code>nc</code>。netcat提供了一个和server交互的窗口用于构造请求。</p><p>首先连接server：<code>nc 127.0.0.1 80</code>，连接完成以后，按照如下格式构造请求：<code>GET / HTTP/1.1</code>。分别代表请求类型，路径，协议。随后netcat会自动构造完整的请求。</p><p>level6 同理，只不过多了一个/verify路径：<code>GET /verify HTTP/1.1</code> 。整个命令可以用一行表示 <code>echo -e "GET /verify HTTP/1.1\n" | nc 127.0.0.1 80</code>。</p><p><img src=/p/hello-pwn-web/level6-nc.png width=1392 height=656 srcset="/p/hello-pwn-web/level6-nc_hu_447c9b978c2772a0.png 480w, /p/hello-pwn-web/level6-nc_hu_585c27118d1c9305.png 1024w" loading=lazy alt=level6 class=gallery-image data-flex-grow=212 data-flex-basis=509px></p><h3 id=level7>level7</h3><p>这一关使用 <code>curl</code> 构造请求：<code>curl 127.0.0.1:80/complete</code> 。</p><p>curl直接使用时，构造的是GET请求。加上&ndash;data时，构造的是POST请求。</p><h3 id=level8>level8</h3><p>这一关使用python写一个小脚本。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=ch>#!/usr/bin/python</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>requests</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span><span class=o>=</span><span class=n>requests</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=s2>&#34;http://127.0.0.1:80/challenge&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=o>.</span><span class=n>content</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=level9-level11>level9-level11</h3><p>这几关需要设置特殊的header，指定header中的host。Host的作用是让server知道请求的是哪一个网站，因为一个IP可能对应多个域名，server需要指导用户请求的域名到底是哪一个。</p><p>level9 使用python。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=ch>#!/usr/bin/python</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>requests</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>header</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;Host&#34;</span><span class=p>:</span><span class=s2>&#34;webhacking.kr:80&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span><span class=o>=</span><span class=n>requests</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=s2>&#34;http://127.0.0.1:80/submit&#34;</span><span class=p>,</span> <span class=n>headers</span><span class=o>=</span><span class=n>header</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=o>.</span><span class=n>content</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>level10 使用curl设置header Host。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>curl -H &#34;Host:net-force.nl:80&#34; 127.0.0.1:80/task
+</span></span></code></pre></td></tr></table></div></div><p>level11 使用netcat设置请求头。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>echo -e &#34;GET /fulfill HTTP/1.1\nHost: 0xf.at:80\n\n&#34; | nc 127.0.0.1 80
+</span></span></code></pre></td></tr></table></div></div><h3 id=level12>level12</h3><p>这一关提到了一个问题，就是<strong>路径可能是包含空格的</strong>，这种情况下使用nc构造请求时，要将路径中的空格用编码代替将其连接起来，否则会出现解析错误。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>echo -e &#34;GET /progress%20request%20qualify HTTP/1.1\nHost:challenge.localhost:80\n\n&#34; | 
+</span></span><span class=line><span class=cl>nc 127.0.0.1 80
+</span></span></code></pre></td></tr></table></div></div><h3 id=level13-15>level13-15</h3><p>这几关提到了parameter问题，即GET请求的参数问题。使用方式也很简单，在路径末尾使用 <code>?para=value</code> 即可。</p><p>level13：<code>curl -H "Host:challenge.localhost:80" http://127.0.0.1:80/gate?unlock=pwgklefy</code></p><p>当然，参数可能是不只一个的，这种情况下用<code>&</code>将参数分隔开即可，<strong>注意之间不要加空格</strong>。</p><p>level14：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>echo -e &#34;GET /authenticate?secure_key=jcbaywzw&amp;private_key=miwgzszt&amp;access_code=buadbiky HTTP/1.1\nHost:challenge.localhost:80\n\n&#34; | nc 127.0.0.1 80
+</span></span></code></pre></td></tr></table></div></div><p>level15：</p><p>注意这里需要将IP用双引号括起来，因为<code>&</code>在shell中有特殊的含义，会出现错误。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl> curl -H &#34;Host:challenge.localhost:80&#34; &#34;http://127.0.0.1:80/progress?keycode=wrgcvc
+</span></span><span class=line><span class=cl>sy&amp;security_token=zlptrsug&amp;secret_key=eectkeks&#34;
+</span></span></code></pre></td></tr></table></div></div><h3 id=level16-level22>level16-level22</h3><p>这几关涉及到了POST请求的form填写。</p><p>level16很简单，在网页填个表格就可以了。</p><p>level17使用curl完成任务：<code>curl -H "Host:challenge.localhost:80" -d "pass=wrxfcbng" http://127.0.0.1:80/challenge</code></p><p>level18使用netcat：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>POST /pass HTTP/1.1
+</span></span><span class=line><span class=cl>Host: challenge.localhost:80
+</span></span><span class=line><span class=cl>Content-Type: application/x-www-form-urlencoded
+</span></span><span class=line><span class=cl>Content-Length: 15
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>verify=kuzyuwlx
+</span></span></code></pre></td></tr></table></div></div><p>level19使用python：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=ch>#!/usr/bin/python</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>requests</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>header</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;Host&#34;</span><span class=p>:</span><span class=s2>&#34;challenge.localhost:80&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span><span class=o>=</span><span class=n>requests</span><span class=o>.</span><span class=n>post</span><span class=p>(</span><span class=s2>&#34;http://127.0.0.1:80/fulfill&#34;</span><span class=p>,</span> <span class=n>headers</span><span class=o>=</span><span class=n>header</span><span class=p>,</span> <span class=n>data</span><span class=o>=</span><span class=p>{</span><span class=s2>&#34;access_code&#34;</span><span class=p>:</span><span class=s2>&#34;dezevikr&#34;</span><span class=p>})</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=o>.</span><span class=n>content</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>level20，这一个要求用firefox浏览器发送一个POST请求，不过其实仍然可以用python等工具完成这个任务，只用在User-Agent字段中加入Firefox就可以了。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=ch>#!/usr/bin/python</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>requests</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>header</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;Host&#34;</span><span class=p>:</span><span class=s2>&#34;challenge.localhost:80&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;User-Agent&#34;</span><span class=p>:</span><span class=s2>&#34;Firefox&#34;</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span><span class=o>=</span><span class=n>requests</span><span class=o>.</span><span class=n>post</span><span class=p>(</span><span class=s2>&#34;http://127.0.0.1:80/progress&#34;</span><span class=p>,</span> <span class=n>headers</span><span class=o>=</span><span class=n>header</span><span class=p>,</span> <span class=n>data</span><span class=o>=</span><span class=p>{</span><span class=s2>&#34;secure_key&#34;</span><span class=p>:</span><span class=s2>&#34;cfezlwph&#34;</span><span class=p>})</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=o>.</span><span class=n>content</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>level21 使用curl完成表格多内容的POST请求：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>curl -H &#34;Host:challenge.localhost:80&#34; -d &#34;hash=abnydllx&#34; -d &#34;unlock=hoskplkb&#34; -d &#34;auth_key=wknbddgj&#34; http://127.0.0.1:80/check
+</span></span></code></pre></td></tr></table></div></div><p>对于多个form数据，用多个-d表示</p><p>level22 使用netcat完成多表格任务：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>POST /validate HTTP/1.1
+</span></span><span class=line><span class=cl>Host: challenge.localhost:80
+</span></span><span class=line><span class=cl>Content-Type: application/x-www-form-urlencoded
+</span></span><span class=line><span class=cl>Content-Length: 64
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>unlock_code=vbemwqtf&amp;unlock=wxqdlpqz&amp;pin=irdvpzgf&amp;token=eiiddxbd
+</span></span></code></pre></td></tr></table></div></div><h3 id=level23-level25>level23-level25</h3><p>URL 重定向（也称为 URL 转发）是一种为页面、表单或者整个 Web 站点/应用提供多个 URL 地址的技术。HTTP 对此操作有一种特殊类型的响应，称为 HTTP 重定向（HTTP redirect）。</p><p>level23使用netcat处理重定向：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>GET / HTTP/1.1
+</span></span><span class=line><span class=cl>Host: challenge.localhost:80
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>GET /uVbqQpyn-fulfill HTTP/1.1
+</span></span><span class=line><span class=cl>Host: challenge.localhost:80
+</span></span></code></pre></td></tr></table></div></div><p>level24，使用curl进行处理，curl的-L选项，可以自动处理重定位问题：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>curl -L -H &#34;Host:challenge.localhost:80&#34; http://127.0.0.1:80/
+</span></span></code></pre></td></tr></table></div></div><p>level25，使用python就更简单了，requests库会自动处理redirect的情况：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=ch>#!/usr/bin/python</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>requests</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>header</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;Host&#34;</span><span class=p>:</span><span class=s2>&#34;challenge.localhost:80&#34;</span><span class=p>,</span>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span><span class=o>=</span><span class=n>requests</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=s2>&#34;http://127.0.0.1:80/&#34;</span><span class=p>,</span> <span class=n>headers</span><span class=o>=</span><span class=n>header</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=o>.</span><span class=n>content</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=level26-level28>level26-level28</h3><p>这几关加入了cookie。</p><p>level26:</p><p>curl的-c可以将cookie保存到一个文件，-b则是指定文件内容作为cookie。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>curl -c cookies.txt 127.0.0.1
+</span></span><span class=line><span class=cl>curl -b cookies.txt 127.0.0.1
+</span></span></code></pre></td></tr></table></div></div><p>level27:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>nc 127.0.0.1 80
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>GET / HTTP/1.1
+</span></span><span class=line><span class=cl>Cookie: cookie=xxx
+</span></span></code></pre></td></tr></table></div></div><p>level28:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=ch>#!/usr/bin/python</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>requests</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>header</span> <span class=o>=</span> <span class=p>{</span>
+</span></span><span class=line><span class=cl>    <span class=s2>&#34;Cookie&#34;</span><span class=p>:</span> <span class=s2>&#34;cookie=x&#34;</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=p>}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span><span class=o>=</span><span class=n>requests</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=s2>&#34;http://127.0.0.1:80/&#34;</span><span class=p>,</span> <span class=n>headers</span><span class=o>=</span><span class=n>header</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=o>.</span><span class=n>content</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><h3 id=level29-level36>level29-level36</h3><p>level29，这一关使用python requests完成，requests似乎也有针对state的功能，所以代码很简单，仅用requests发送请求即可。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-python data-lang=python><span class=line><span class=cl><span class=ch>#!/usr/bin/python</span>
+</span></span><span class=line><span class=cl><span class=kn>import</span> <span class=nn>requests</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=n>response</span><span class=o>=</span><span class=n>requests</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=s2>&#34;http://127.0.0.1:80/&#34;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl><span class=nb>print</span><span class=p>(</span><span class=n>response</span><span class=o>.</span><span class=n>content</span><span class=p>)</span>
+</span></span></code></pre></td></tr></table></div></div><p>level30，这一关要求我们对1337端口进行监听，运行/challenge/client客户端以后，会发送带有flag的请求。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>nc -l 1337
+</span></span></code></pre></td></tr></table></div></div><p>level31，在server端进行一个重定向。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>import flask
+</span></span><span class=line><span class=cl>import os
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>app = flask.Flask(__name__)
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>@app.route(&#34;/&#34;, methods=[&#34;GET&#34;])
+</span></span><span class=line><span class=cl>def redirector():
+</span></span><span class=line><span class=cl>    return flask.redirect(f&#34;http://challenge.localhost:80/attempt&#34;)
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl>app.secret_key = os.urandom(8)
+</span></span><span class=line><span class=cl>app.run(&#34;localhost&#34;, 1337)
+</span></span></code></pre></td></tr></table></div></div><h2 id=web-security---intro-to-cybersecurity>Web Security - Intro to Cybersecurity</h2><h3 id=path-traversal-1-2>Path Traversal 1-2</h3><p>这两关与路径相关，我们在request中加入<code>../</code>即可挣脱出server设置的路径限制，对任意其他文件进行访问。</p><p>level1:</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>curl  http://challenge.localhost:80/blob/..%2F..%2Fflag
+</span></span><span class=line><span class=cl>curl --path-as-is http://challenge.localhost:80/blob/../../flag
+</span></span></code></pre></td></tr></table></div></div><p>如果我们直接运行<code>curl http://challenge.localhost:80/blob/../../flag</code>，路径最终会被解析为<code>/flag</code>，会出现这个问题的原因是<strong>curl会对路径进行简化</strong>，将<code>../</code>合并，因此我们可以通过将字符转为编码以解决此问题。此外，我们也可以用curl的flag <code>--path-as-is</code> 解决此问题。</p><p>level2：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-fallback data-lang=fallback><span class=line><span class=cl>curl -v http://challenge.localhost:80/data/fortunes/..%2F..%2F..%2Fflag
+</span></span></code></pre></td></tr></table></div></div><p>从level2的server源码<code>requested_path = app.root_path + "/files/" + path.strip("/.")</code>可以观察到，相较于level1，level2将path首尾的 <code>.</code> 和 <code>\</code> 字符删去了，我们只需要在路径首部加上一个存在的文件夹即可绕过。根据观察，在/challenge/files路径下存在一个fortunes文件夹，我们可以借此绕过检查。</p><h3 id=cmdi-1-6>CMDi 1-6</h3></section><footer class=article-footer><section class=article-tags><a href=/tags/pwn/>PWN</a>
+<a href=/tags/web/>Web</a></section><section class=article-copyright><svg class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-SA 4.0</span></section><section class=article-lastmod><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<span>Last updated on Jun 30, 2025 00:00 UTC</span></section><section>View: <span id=busuanzi_value_page_pv>Loading</span></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>Related content</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/p/hello-pwn.college/><div class=article-details><h2 class=article-title>pwn.college Getting Started</h2></div></a></article></div></div></aside><script src=https://giscus.app/client.js data-repo=apowerfulmei/apowerfulmei.github.io data-repo-id=R_kgDOOyWt8Q data-category=Announcements data-category-id=DIC_kwDOOyWt8c4CrPHr data-mapping=pathname data-strict=0 data-reactions-enabled=1 data-emit-metadata=0 data-input-position=top data-theme=light data-lang=en data-loading crossorigin=anonymous async></script><script>function setGiscusTheme(e){let t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:{setConfig:{theme:e}}},"https://giscus.app")}(function(){addEventListener("message",t=>{if(event.origin!=="https://giscus.app")return;e()}),window.addEventListener("onColorSchemeChange",e);function e(){setGiscusTheme(document.documentElement.dataset.scheme==="light"?"light":"dark")}})()</script><footer class=site-footer><section class=copyright>&copy;
+2024 -
+2025 apowerfulmei</section><section class=powerby>总访客数：<span id=busuanzi_value_site_uv style=margin-right:50px>Loading</span> 总访问量：<span id=busuanzi_value_site_pv style=margin-right:50px>Loading</span>
+<a href=https://cloud.umami.is/share/Bjf4XBFngV0tHdVS/apowerfulmei.github.io style=color:blue target=_blank>访问详细统计</a><br><span id=span_show_age style=margin-right:50px><br>Built with <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a><br>Theme <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.30.0>Stack</a></b> designed by <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a></section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.1e9a3bafd846ced4c345d084b355fb8c7bae75701c338f8a1f8a82c780137826.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script><script defer src=https://cn.vercount.one/js></script><script defer src=https://cloud.umami.is/script.js data-website-id=4daf7b3c-b00f-4f08-833d-af909c284828></script></body></html>
