@@ -9,6 +9,10 @@ links:
     description: 基于OpenHarmony的病床巡检系统
     website: https://github.com/HEcope/ward_inspection_system
     image: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
+  - title: OssFuzz-Auto
+    description: Google Oss-Fuzz automation tool
+    website: https://github.com/apowerfulmei/OssFuzz-Auto
+    image: https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png
 menu:
     main: 
         weight: 4
