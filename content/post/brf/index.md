@@ -66,7 +66,7 @@ mkdir /mnt/brf_work_dir
 mount -t 9p -o trans=virtio,version=9p2000.L brf /mnt/brf_work_dir
 
 
-clang -g -O2 -D__TARGET_ARCH_x86 -I/usr/include/$(uname -m)-linux-gnu -Wno-compare-distinct-pointer-types -Wno-int-conversion -target bpf -mcpu=v3 -c ./prog_18488a70d6315a0e.c -o test.o
+clang-16 -g -O2 -D__TARGET_ARCH_x86 -I/usr/include/$(uname -m)-linux-gnu -Wno-compare-distinct-pointer-types -Wno-int-conversion -target bpf -mcpu=v3 -c ./prog_1869aed7db619f2f.c -o test.o
 
 ```
 
@@ -174,3 +174,17 @@ func (p *BpfProg) writeCSource() error {
 这是因为在这一个 [commit](https://github.com/trusslab/brf/commit/047d1c9a3e47722ae94afb9f0247a1057c323df3) 中，WorkQueue loop相关的代码被注释掉了，`triageInput`函数不会被执行，也就不会收集覆盖率以及扩充语料库。
 
 从commit的注释`"TEST: disable mutation"`似乎可以看出，这个提交只是为了测试brf生成程序以及执行的能力，那我们转移到上一个commit `a1f51c55c2c01b5959cfbfc9e44559da5d48551c` 再运行试试。
+
+转移到这个commit再运行以后会发现，BRF在给系统调用`syz_bpf_prog_load`等传递参数时，由于参数（形如：/workdir/prog_xxx.c）的值会触发syzkaller中对`escapingFilename`的检查，因此我们需要将相关的检查都注释掉，程序才可以正常运行。
+
+经过这样一系列的操作之后，我们终于可以看到一个正常运行的BRF：
+
+覆盖率
+
+![brf_cover](brf_cover.png)
+
+语料库
+
+![brf_corpus](brf_corpus.png)
+
+
