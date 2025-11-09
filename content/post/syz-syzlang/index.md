@@ -21,7 +21,27 @@ weight: 2       # You can add weight to some posts to override the default sorti
 - 从参数到系统调用
 - 从系统调用到程序
 
-## syzlang模板
+## syzlang模板以及加载
+
+### syzlang与类型
+
+syzlang是syzkaller对系统调用的描述性语言，简单来说就是它会告诉你一个系统调用是由哪些参数组成的，会返回什么类型的返回值。syzlang文档集中在`sys/linux`目录下。
+
+syzkaller在`prog/types.go`文件中对`类型`进行了详细的描述。类型包括诸如：
+
+- ConstType、IntType、FlagsType、LenType、ProcType、CsumType，这一部分都是整数类型，但各有其特定的含义。
+
+- PtrType、VmaType，指针类型。
+
+- BufferType，字节缓冲区类型。
+
+- StructType、ArrayType，结构体和数组类型。
+
+- UnionType，联合体类型。
+
+- ResourceType，资源类型，这是我认为十分巧妙的一种类型。资源一方面如同货物一般，它反映出一个系统调用需要哪些资源，能创造哪些资源，另一方面它也是桥梁，它反映了系统调用之间的参数传递与依赖关系。有的系统调用能够创建另一个系统调用所需的资源，这使得不同的系统调用相互关联了起来。syzkaller在创建模糊测试用例时，可以通过资源将系统调用有逻辑地组合起来，形成特殊的语义，而非盲目生成。不过它只能显式反映系统调用之间的依赖组合关系，对于那些没有明面展示在参数关系上的**隐式依赖关系**，它无法识别，这也是目前的学术方向之一。
+
+
 
 ## 从参数到系统调用
 
