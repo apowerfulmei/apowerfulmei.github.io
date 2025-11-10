@@ -8,7 +8,7 @@ categories:
 tags:
     - fuzz
     - syzkaller
-weight: 2       # You can add weight to some posts to override the default sorting (date descending)
+weight: 1       # You can add weight to some posts to override the default sorting (date descending)
 ---
 
 # syzkaller syzlang
