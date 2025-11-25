@@ -1,5 +1,5 @@
 ---
-title: bpf_link_create: Device or resource busy
+title: bpf_link_create Device or resource busy
 description: 一次bpf_link_create调试
 slug: hello bpf_link_create
 date: 2025-11-14 00:00:00+0000
