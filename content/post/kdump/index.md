@@ -2,7 +2,7 @@
 title: kdump 系统配置
 description: kdump系统配置记录
 slug: hello kdump
-date: 2026-1-28 00:00:00+0000
+date: 2026-01-28 00:00:00+0000
 categories:
     - Linux
 tags:
