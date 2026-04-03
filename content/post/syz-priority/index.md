@@ -9,7 +9,7 @@ tags:
     - fuzz
     - syzkaller
     - kernel
-weight: 2
+weight: 1
 ---
 
 # Syzkaller 的 Priority 机制：从 Signal 到变异的四层优先级体系
