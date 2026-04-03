@@ -1,0 +1,985 @@
+<!doctype html><html lang=en-us dir=ltr><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><meta name=description content="深入分析 syzkaller 内核模糊测试框架中的四层优先级体系——Signal Priority、Corpus 程序优先级、ChoiceTable 系统调用优先级矩阵、参数变异优先级，以及它们如何协同构成正反馈闭环"><title>Syzkaller 的 Priority 机制：从 Signal 到变异的四层优先级体系</title><link rel=canonical href=https://apowerfulmei.github.io/p/syz-priority/><link rel=stylesheet href=/scss/style.min.833d6eed45de56f48306bf57268d5b8cdfc8a60e8e7bdc99810464fcd033f7c6.css><meta property='og:title' content="Syzkaller 的 Priority 机制：从 Signal 到变异的四层优先级体系"><meta property='og:description' content="深入分析 syzkaller 内核模糊测试框架中的四层优先级体系——Signal Priority、Corpus 程序优先级、ChoiceTable 系统调用优先级矩阵、参数变异优先级，以及它们如何协同构成正反馈闭环"><meta property='og:url' content='https://apowerfulmei.github.io/p/syz-priority/'><meta property='og:site_name' content='apowerfulmei'><meta property='og:type' content='article'><meta property='article:section' content='Post'><meta property='article:tag' content='fuzz'><meta property='article:tag' content='syzkaller'><meta property='article:tag' content='kernel'><meta property='article:published_time' content='2026-04-03T00:00:00+00:00'><meta property='article:modified_time' content='2026-04-03T00:00:00+00:00'><meta name=twitter:title content="Syzkaller 的 Priority 机制：从 Signal 到变异的四层优先级体系"><meta name=twitter:description content="深入分析 syzkaller 内核模糊测试框架中的四层优先级体系——Signal Priority、Corpus 程序优先级、ChoiceTable 系统调用优先级矩阵、参数变异优先级，以及它们如何协同构成正反馈闭环"><link rel="shortcut icon" href=/favicon.png></head><body class=article-page><script>(function(){const e="StackColorScheme";localStorage.getItem(e)||localStorage.setItem(e,"auto")})()</script><script>(function(){const t="StackColorScheme",e=localStorage.getItem(t),n=window.matchMedia("(prefers-color-scheme: dark)").matches===!0;e=="dark"||e==="auto"&&n?document.documentElement.dataset.scheme="dark":document.documentElement.dataset.scheme="light"})()</script><div class="container main-container flex on-phone--column extended"><aside class="sidebar left-sidebar sticky"><button class="hamburger hamburger--spin" type=button id=toggle-menu aria-label="Toggle Menu">
+<span class=hamburger-box><span class=hamburger-inner></span></span></button><header><figure class=site-avatar><a href=/><img src=/img/d2_hu_f28090bb36eea50e.jpg width=300 height=295 class=site-logo loading=lazy alt=Avatar>
+</a><span class=emoji>🍥</span></figure><div class=site-meta><h1 class=site-name><a href=/>apowerfulmei</a></h1><h2 class=site-description>一些日常记录。</h2></div></header><ol class=menu-social><li><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank title=GitHub rel=me><svg class="icon icon-tabler icon-tabler-brand-github" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 5v-3.5c0-1 .1-1.4-.5-2 2.8-.3 5.5-1.4 5.5-6a4.6 4.6.0 00-1.3-3.2 4.2 4.2.0 00-.1-3.2s-1.1-.3-3.5 1.3a12.3 12.3.0 00-6.2.0C6.5 2.8 5.4 3.1 5.4 3.1a4.2 4.2.0 00-.1 3.2A4.6 4.6.0 004 9.5c0 4.6 2.7 5.7 5.5 6-.6.6-.6 1.2-.5 2V21"/></svg></a></li><li><a href=https://twitter.com target=_blank title=Twitter rel=me><svg class="icon icon-tabler icon-tabler-brand-twitter" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M22 4.01c-1 .49-1.98.689-3 .99-1.121-1.265-2.783-1.335-4.38-.737S11.977 6.323 12 8v1c-3.245.083-6.135-1.395-8-4 0 0-4.182 7.433 4 11-1.872 1.247-3.739 2.088-6 2 3.308 1.803 6.913 2.423 10.034 1.517 3.58-1.04 6.522-3.723 7.651-7.742a13.84 13.84.0 00.497-3.753C20.18 7.773 21.692 5.25 22 4.009z"/></svg></a></li></ol><ol class=menu id=main-menu><li><a href=/><svg class="icon icon-tabler icon-tabler-home" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><polyline points="5 12 3 12 12 3 21 12 19 12"/><path d="M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/><path d="M9 21v-6a2 2 0 012-2h2a2 2 0 012 2v6"/></svg>
+<span>Home</span></a></li><li><a href=/archives/><svg class="icon icon-tabler icon-tabler-archive" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><rect x="3" y="4" width="18" height="4" rx="2"/><path d="M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8"/><line x1="10" y1="12" x2="14" y2="12"/></svg>
+<span>Archives</span></a></li><li><a href=/search/><svg class="icon icon-tabler icon-tabler-search" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="10" cy="10" r="7"/><line x1="21" y1="21" x2="15" y2="15"/></svg>
+<span>Search</span></a></li><li><a href=/links/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Links</span></a></li><li><a href=/projects/><svg class="icon icon-tabler icon-tabler-link" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M10 14a3.5 3.5.0 005 0l4-4a3.5 3.5.0 00-5-5l-.5.5"/><path d="M14 10a3.5 3.5.0 00-5 0l-4 4a3.5 3.5.0 005 5l.5-.5"/></svg>
+<span>Projects</span></a></li><li class=menu-bottom-section><ol class=menu><li id=dark-mode-toggle><svg class="icon icon-tabler icon-tabler-toggle-left" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="8" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<svg class="icon icon-tabler icon-tabler-toggle-right" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="16" cy="12" r="2"/><rect x="2" y="6" width="20" height="12" rx="6"/></svg>
+<span>Dark Mode</span></li></ol></li></ol></aside><aside class="sidebar right-sidebar sticky"><section class="widget archives"><div class=widget-icon><svg class="icon icon-tabler icon-tabler-hash" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><line x1="5" y1="9" x2="19" y2="9"/><line x1="5" y1="15" x2="19" y2="15"/><line x1="11" y1="4" x2="7" y2="20"/><line x1="17" y1="4" x2="13" y2="20"/></svg></div><h2 class="widget-title section-title">Table of contents</h2><div class=widget--toc><nav id=TableOfContents><ol><li><a href=#引言为什么-syzkaller-需要-priority>引言：为什么 syzkaller 需要 priority？</a></li><li><a href=#第一层signal-priority覆盖信号的权重标记>第一层：Signal Priority——覆盖信号的权重标记</a><ol><li><a href=#核心数据结构>核心数据结构</a></li><li><a href=#signalprio四种优先级等级>signalPrio：四种优先级等级</a></li><li><a href=#diffraw只有更好的-signal-才算新-signal>DiffRaw：只有"更好的" signal 才算新 signal</a></li><li><a href=#addrawmaxsignal层层递进的信号收集>addRawMaxSignal：层层递进的信号收集</a></li></ol></li><li><a href=#第二层corpus-程序优先级signal-数量决定被选中的概率>第二层：Corpus 程序优先级——signal 数量决定被选中的概率</a><ol><li><a href=#权重计算signal-越多越容易被选中>权重计算：signal 越多越容易被选中</a></li><li><a href=#加权随机选择累积前缀和--二分查找>加权随机选择：累积前缀和 + 二分查找</a></li><li><a href=#正反馈闭环>正反馈闭环</a></li><li><a href=#focus-area引导-fuzzer-探索特定代码区域>Focus Area：引导 fuzzer 探索特定代码区域</a></li><li><a href=#corpussave-的去重与合并>Corpus.Save 的去重与合并</a></li></ol></li><li><a href=#第三层choicetable系统调用间优先级矩阵>第三层：ChoiceTable——系统调用间优先级矩阵</a><ol><li><a href=#设计动机>设计动机</a></li><li><a href=#choicetable-结构体>ChoiceTable 结构体</a></li><li><a href=#静态优先级基于参数类型的资源分析>静态优先级：基于参数类型的资源分析</a><ol><li><a href=#第一步calcresourceusage提取资源使用关系>第一步：calcResourceUsage——提取资源使用关系</a></li><li><a href=#第二步基于使用关系计算优先级>第二步：基于使用关系计算优先级</a></li><li><a href=#第三步自优先级--最大值--34>第三步：自优先级 = 最大值 × 3/4</a></li></ol></li><li><a href=#动态优先级基于-corpus-共现频率>动态优先级：基于 corpus 共现频率</a></li><li><a href=#归一化n--10-的预算分配>归一化：|N| × 10 的预算分配</a></li><li><a href=#buildchoicetable合并静态与动态>BuildChoiceTable：合并静态与动态</a></li><li><a href=#choose5-随机逃逸>choose：5% 随机逃逸</a></li><li><a href=#choicetable-的动态更新>ChoiceTable 的动态更新</a></li></ol></li><li><a href=#第四层参数变异优先级类型驱动变异资源分配>第四层：参数变异优先级——类型驱动变异资源分配</a><ol><li><a href=#变异操作权重>变异操作权重</a></li><li><a href=#choosecall按参数复杂度选择要变异的调用>chooseCall：按参数复杂度选择要变异的调用</a></li><li><a href=#getmutationprio各类型参数的变异优先级>getMutationPrio：各类型参数的变异优先级</a></li><li><a href=#rangesizeprio小范围值的变异优先级>rangeSizePrio：小范围值的变异优先级</a></li><li><a href=#完整优先级汇总表>完整优先级汇总表</a></li><li><a href=#choosearg参数级加权选择>chooseArg：参数级加权选择</a></li></ol></li><li><a href=#四层-priority-的协同工作流>四层 priority 的协同工作流</a></li><li><a href=#拓展性分析>拓展性分析</a><ol><li><a href=#可能存在的问题>可能存在的问题</a></li><li><a href=#科研与工程价值>科研与工程价值</a></li></ol></li><li><a href=#设计哲学总结>设计哲学总结</a></li><li><a href=#参考>参考</a></li></ol></nav></div></section></aside><main class="main full-width"><article class=main-article><header class=article-header><div class=article-details><header class=article-category><a href=/categories/fuzz/ style=background-color:#2a9d8f;color:#fff>Fuzz</a></header><div class=article-title-wrapper><h2 class=article-title><a href=/p/syz-priority/>Syzkaller 的 Priority 机制：从 Signal 到变异的四层优先级体系</a></h2><h3 class=article-subtitle>深入分析 syzkaller 内核模糊测试框架中的四层优先级体系——Signal Priority、Corpus 程序优先级、ChoiceTable 系统调用优先级矩阵、参数变异优先级，以及它们如何协同构成正反馈闭环</h3></div><footer class=article-time><div><svg class="icon icon-tabler icon-tabler-calendar-time" width="56" height="56" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><path d="M11.795 21H5a2 2 0 01-2-2V7a2 2 0 012-2h12a2 2 0 012 2v4"/><circle cx="18" cy="18" r="4"/><path d="M15 3v4"/><path d="M7 3v4"/><path d="M3 11h16"/><path d="M18 16.496V18l1 1"/></svg>
+<time class=article-time--published>Apr 03, 2026</time></div><div><svg class="icon icon-tabler icon-tabler-clock" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>
+<time class=article-time--reading>14 minute read</time></div></footer></div></header><section class=article-content><h1 id=syzkaller-的-priority-机制从-signal-到变异的四层优先级体系>Syzkaller 的 Priority 机制：从 Signal 到变异的四层优先级体系</h1><p>文章使用<strong>WorkBuddy</strong>撰写。</p><h2 id=引言为什么-syzkaller-需要-priority>引言：为什么 syzkaller 需要 priority？</h2><p>在上一篇<a class=link href=/syz-queue/>队列机制</a>的分析中，我们看到 syzkaller 通过五级优先级队列解决了"任务调度顺序"的问题——triage 请求优先于普通 fuzz，新候选程序优先于 corpus 程序。</p><p>然而，队列机制只回答了"先执行哪个任务"，却没有回答另一组同样关键的问题：</p><ul><li><strong>一个 syscall 执行成功返回了新的覆盖信息，这条信息有多重要？</strong></li><li><strong>corpus 里有上千个程序，变异时该选哪个？</strong></li><li><strong>生成新程序时，下一个 syscall 该选哪个？</strong></li><li><strong>选定一个 call 后，该变异它的哪个参数？</strong></li></ul><p>这些问题构成了 syzkaller 的 <strong>priority 体系</strong>——一套贯穿 signal → corpus → syscall 选择 → 参数变异的四层优先级机制。与队列机制的"宏观调度"不同，priority 体系解决的是"微观资源分配"：在有限的执行预算内，将 fuzzing 的火力集中在最可能发现新覆盖的方向上。</p><p>本文将从源码出发，自底向上逐层拆解这四层优先级。</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-gdscript3 data-lang=gdscript3><span class=line><span class=cl><span class=err>┌─────────────────────────────────────────────────────────────┐</span>
+</span></span><span class=line><span class=cl><span class=err>│</span>  <span class=err>第四层：参数变异优先级（</span><span class=n>getMutationPrio</span><span class=err>）</span>                    <span class=err>│</span>
+</span></span><span class=line><span class=cl><span class=err>│</span>  <span class=err>选定</span> <span class=n>call</span> <span class=err>后，按参数类型分配</span> <span class=mi>0</span><span class=o>~</span><span class=mi>10</span> <span class=err>的变异权重</span>                <span class=err>│</span>
+</span></span><span class=line><span class=cl><span class=err>├─────────────────────────────────────────────────────────────┤</span>
+</span></span><span class=line><span class=cl><span class=err>│</span>  <span class=err>第三层：</span><span class=n>ChoiceTable</span><span class=err>（</span><span class=n>prio</span><span class=o>.</span><span class=n>go</span><span class=err>）</span>                              <span class=err>│</span>
+</span></span><span class=line><span class=cl><span class=err>│</span>  <span class=n>syscall</span> <span class=err>间优先级矩阵，指导生成</span><span class=o>/</span><span class=err>变异时选哪个</span> <span class=n>syscall</span>          <span class=err>│</span>
+</span></span><span class=line><span class=cl><span class=err>├─────────────────────────────────────────────────────────────┤</span>
+</span></span><span class=line><span class=cl><span class=err>│</span>  <span class=err>第二层：</span><span class=n>Corpus</span> <span class=err>程序优先级（</span><span class=n>saveProgram</span> <span class=o>/</span> <span class=n>chooseProgram</span><span class=err>）</span>     <span class=err>│</span>
+</span></span><span class=line><span class=cl><span class=err>│</span>  <span class=k>signal</span> <span class=err>数量</span> <span class=o>=</span> <span class=err>被选中变异的概率，形成正反馈闭环</span>              <span class=err>│</span>
+</span></span><span class=line><span class=cl><span class=err>├─────────────────────────────────────────────────────────────┤</span>
+</span></span><span class=line><span class=cl><span class=err>│</span>  <span class=err>第一层：</span><span class=n>Signal</span> <span class=n>Priority</span><span class=err>（</span><span class=n>signalPrio</span><span class=err>）</span>                      <span class=err>│</span>
+</span></span><span class=line><span class=cl><span class=err>│</span>  <span class=err>每条覆盖信号带</span> <span class=mi>0</span><span class=o>~</span><span class=mi>3</span> <span class=err>的权重，决定哪些</span> <span class=k>signal</span> <span class=s2>&#34;算新的&#34;</span>         <span class=err>│</span>
+</span></span><span class=line><span class=cl><span class=err>└─────────────────────────────────────────────────────────────┘</span>
+</span></span></code></pre></td></tr></table></div></div><hr><h2 id=第一层signal-priority覆盖信号的权重标记>第一层：Signal Priority——覆盖信号的权重标记</h2><h3 id=核心数据结构>核心数据结构</h3><p>在 syzkaller 中，&ldquo;signal&rdquo;（信号）代表程序执行产生的覆盖信息。它的底层实现是一个 map，每个元素关联一个 <code>prioType</code> 优先级：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/signal/signal.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>elemType</span><span class=w> </span><span class=kt>uint64</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>prioType</span><span class=w> </span><span class=kt>int8</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// Signal: 覆盖元素到优先级的映射</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>Signal</span><span class=w> </span><span class=kd>map</span><span class=p>[</span><span class=nx>elemType</span><span class=p>]</span><span class=nx>prioType</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>这不是一个简单的"有/无"集合，而是每个覆盖元素都携带了<strong>优先级标记</strong>。这个优先级直接影响哪些 signal 会被认定为"新的"。</p><h3 id=signalprio四种优先级等级>signalPrio：四种优先级等级</h3><p><code>signalPrio()</code> 函数为每次 syscall 执行结果计算一个 0~3 的优先级值：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/fuzzer/fuzzer.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>signalPrio</span><span class=p>(</span><span class=nx>p</span><span class=w> </span><span class=o>*</span><span class=nx>prog</span><span class=p>.</span><span class=nx>Prog</span><span class=p>,</span><span class=w> </span><span class=nx>info</span><span class=w> </span><span class=o>*</span><span class=nx>flatrpc</span><span class=p>.</span><span class=nx>CallInfo</span><span class=p>,</span><span class=w> </span><span class=nx>call</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>prio</span><span class=w> </span><span class=kt>uint8</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>call</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=o>-</span><span class=mi>1</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=mi>0</span><span class=w>                               </span><span class=c1>// Extra call，最低优先级</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>info</span><span class=p>.</span><span class=nx>Error</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=o>|=</span><span class=w> </span><span class=mi>1</span><span class=w> </span><span class=o>&lt;&lt;</span><span class=w> </span><span class=mi>1</span><span class=w>                         </span><span class=c1>// 调用成功 → +2</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=p>!</span><span class=nx>p</span><span class=p>.</span><span class=nx>Target</span><span class=p>.</span><span class=nf>CallContainsAny</span><span class=p>(</span><span class=nx>p</span><span class=p>.</span><span class=nx>Calls</span><span class=p>[</span><span class=nx>call</span><span class=p>])</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=o>|=</span><span class=w> </span><span class=mi>1</span><span class=w> </span><span class=o>&lt;&lt;</span><span class=w> </span><span class=mi>0</span><span class=w>                         </span><span class=c1>// 不含 any 参数 → +1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>两个独立的维度组合产生四个等级：</p><div class=table-wrapper><table><thead><tr><th>条件</th><th>prio 值</th><th>含义</th></tr></thead><tbody><tr><td>call == -1</td><td>0</td><td>Extra call，最低价值</td></tr><tr><td>调用失败 + 含 any</td><td>0</td><td>调用失败，且参数含低信息量数据</td></tr><tr><td>调用失败 + 不含 any</td><td>1</td><td>调用失败，但参数有具体语义</td></tr><tr><td>调用成功 + 含 any</td><td>2</td><td>调用成功，但参数含 any</td></tr><tr><td>调用成功 + 不含 any</td><td><strong>3</strong></td><td>调用成功 + 参数语义完整，<strong>最高价值</strong></td></tr></tbody></table></div><p>设计意图值得细说：</p><ol><li><p><strong>&ldquo;成功调用比失败调用更有价值&rdquo;</strong>：<code>errno == 0</code> 意味着 syscall 顺利走完了内核路径。失败调用往往在入口处就返回了，覆盖的内核路径较浅。因此成功的调用被赋予了更高的 signal 优先级。</p></li><li><p><strong>&ldquo;不含 any 的调用更有价值&rdquo;</strong>：syzkaller 中的 <code>any</code> 类型是一种"万能占位符"，在不知道参数具体含义时用作默认值。含 any 的参数缺少语义信息——我们不知道这份数据"意味着什么"，它覆盖的代码路径可能只是碰巧经过。不含 any 意味着参数有具体的类型和语义（如 <code>fd[sock]</code>、<code>flags[O_RDONLY]</code>），这样的覆盖更具结构性。</p></li></ol><h3 id=diffraw只有更好的-signal-才算新-signal>DiffRaw：只有"更好的" signal 才算新 signal</h3><p>当一次执行产生覆盖信息后，需要判断这些覆盖中哪些是"新的"。<code>DiffRaw</code> 方法实现了这一判断：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/signal/signal.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>s</span><span class=w> </span><span class=nx>Signal</span><span class=p>)</span><span class=w> </span><span class=nf>DiffRaw</span><span class=p>(</span><span class=nx>raw</span><span class=w> </span><span class=p>[]</span><span class=kt>uint64</span><span class=p>,</span><span class=w> </span><span class=nx>prio</span><span class=w> </span><span class=kt>uint8</span><span class=p>)</span><span class=w> </span><span class=nx>Signal</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=kd>var</span><span class=w> </span><span class=nx>res</span><span class=w> </span><span class=nx>Signal</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>e</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>raw</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c1>// 关键条件：只有当新 signal 的 prio &gt; 已有 signal 的 prio 时，才算&#34;新的&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>if</span><span class=w> </span><span class=nx>p</span><span class=p>,</span><span class=w> </span><span class=nx>ok</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>s</span><span class=p>[</span><span class=nf>elemType</span><span class=p>(</span><span class=nx>e</span><span class=p>)];</span><span class=w> </span><span class=nx>ok</span><span class=w> </span><span class=o>&amp;&amp;</span><span class=w> </span><span class=nx>p</span><span class=w> </span><span class=o>&gt;=</span><span class=w> </span><span class=nf>prioType</span><span class=p>(</span><span class=nx>prio</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=k>continue</span><span class=w>                              </span><span class=c1>// 已有同等或更高优先级的覆盖，跳过</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>if</span><span class=w> </span><span class=nx>res</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>res</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>make</span><span class=p>(</span><span class=nx>Signal</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>res</span><span class=p>[</span><span class=nf>elemType</span><span class=p>(</span><span class=nx>e</span><span class=p>)]</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nf>prioType</span><span class=p>(</span><span class=nx>prio</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>res</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>这意味着：如果某个覆盖元素已经被一个成功的、不含 any 的调用（prio=3）覆盖过，那么同一个元素被一个失败的调用（prio=0）再次产生时，<strong>不会</strong>被认定为新 signal。只有当新的覆盖带有<strong>更高优先级</strong>时，才会更新已有的记录。</p><h3 id=addrawmaxsignal层层递进的信号收集>addRawMaxSignal：层层递进的信号收集</h3><p>在 fuzzer 主循环中，每次执行完成后调用 <code>addRawMaxSignal</code> 收集新 signal：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/fuzzer/cover.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>cover</span><span class=w> </span><span class=o>*</span><span class=nx>Cover</span><span class=p>)</span><span class=w> </span><span class=nf>addRawMaxSignal</span><span class=p>(</span><span class=nx>signal</span><span class=w> </span><span class=p>[]</span><span class=kt>uint64</span><span class=p>,</span><span class=w> </span><span class=nx>prio</span><span class=w> </span><span class=kt>uint8</span><span class=p>)</span><span class=w> </span><span class=nx>signal</span><span class=p>.</span><span class=nx>Signal</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>cover</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Lock</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>defer</span><span class=w> </span><span class=nx>cover</span><span class=p>.</span><span class=nx>mu</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>diff</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>cover</span><span class=p>.</span><span class=nx>maxSignal</span><span class=p>.</span><span class=nf>DiffRaw</span><span class=p>(</span><span class=nx>signal</span><span class=p>,</span><span class=w> </span><span class=nx>prio</span><span class=p>)</span><span class=w>  </span><span class=c1>// 与历史最大 signal 比较</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>diff</span><span class=p>.</span><span class=nf>Empty</span><span class=p>()</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=nx>diff</span><span class=w>                                  </span><span class=c1>// 没有新 signal</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>cover</span><span class=p>.</span><span class=nx>maxSignal</span><span class=p>.</span><span class=nf>Merge</span><span class=p>(</span><span class=nx>diff</span><span class=p>)</span><span class=w>                     </span><span class=c1>// 更新历史最大 signal</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>cover</span><span class=p>.</span><span class=nx>newSignal</span><span class=p>.</span><span class=nf>Merge</span><span class=p>(</span><span class=nx>diff</span><span class=p>)</span><span class=w>                     </span><span class=c1>// 记录本轮新增 signal</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>diff</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>这里维护了两份 signal：<code>maxSignal</code>（历史峰值，包括 flaky 的覆盖）和 <code>newSignal</code>（本轮新增）。前者用于"去重判断"，后者用于触发 triage 等后续流程。</p><hr><h2 id=第二层corpus-程序优先级signal-数量决定被选中的概率>第二层：Corpus 程序优先级——signal 数量决定被选中的概率</h2><h3 id=权重计算signal-越多越容易被选中>权重计算：signal 越多越容易被选中</h3><p>当一个程序被发现携带新 signal 并进入 corpus 时，它的"被选中概率"由它携带的 signal 数量决定：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/corpus/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>pl</span><span class=w> </span><span class=o>*</span><span class=nx>ProgramsList</span><span class=p>)</span><span class=w> </span><span class=nf>saveProgram</span><span class=p>(</span><span class=nx>p</span><span class=w> </span><span class=o>*</span><span class=nx>prog</span><span class=p>.</span><span class=nx>Prog</span><span class=p>,</span><span class=w> </span><span class=nx>signal</span><span class=w> </span><span class=nx>signal</span><span class=p>.</span><span class=nx>Signal</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>prio</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>int64</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>signal</span><span class=p>))</span><span class=w>          </span><span class=c1>// signal 数量即为优先级</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>prio</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=mi>1</span><span class=w>                        </span><span class=c1>// 至少为 1，确保不会被完全忽略</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>pl</span><span class=p>.</span><span class=nx>sumPrios</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=nx>prio</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>pl</span><span class=p>.</span><span class=nx>accPrios</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>append</span><span class=p>(</span><span class=nx>pl</span><span class=p>.</span><span class=nx>accPrios</span><span class=p>,</span><span class=w> </span><span class=nx>pl</span><span class=p>.</span><span class=nx>sumPrios</span><span class=p>)</span><span class=w>  </span><span class=c1>// 累积前缀和</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>pl</span><span class=p>.</span><span class=nx>progs</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>append</span><span class=p>(</span><span class=nx>pl</span><span class=p>.</span><span class=nx>progs</span><span class=p>,</span><span class=w> </span><span class=nx>p</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>这是一个直觉上非常合理的设计：一个程序覆盖的 signal 越多，它在 corpus 中的"代表性"越强，越值得被选中进行变异。</p><h3 id=加权随机选择累积前缀和--二分查找>加权随机选择：累积前缀和 + 二分查找</h3><p><code>chooseProgram</code> 使用经典的<strong>前缀和 + 二分查找</strong>算法实现加权随机选择：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/corpus/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>pl</span><span class=w> </span><span class=o>*</span><span class=nx>ProgramsList</span><span class=p>)</span><span class=w> </span><span class=nf>chooseProgram</span><span class=p>(</span><span class=nx>r</span><span class=w> </span><span class=o>*</span><span class=nx>rand</span><span class=p>.</span><span class=nx>Rand</span><span class=p>)</span><span class=w> </span><span class=o>*</span><span class=nx>prog</span><span class=p>.</span><span class=nx>Prog</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>pl</span><span class=p>.</span><span class=nx>progs</span><span class=p>)</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=kc>nil</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>randVal</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>r</span><span class=p>.</span><span class=nf>Int63n</span><span class=p>(</span><span class=nx>pl</span><span class=p>.</span><span class=nx>sumPrios</span><span class=w> </span><span class=o>+</span><span class=w> </span><span class=mi>1</span><span class=p>)</span><span class=w>           </span><span class=c1>// 生成 [0, sumPrios] 的随机值</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>idx</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>sort</span><span class=p>.</span><span class=nf>Search</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>pl</span><span class=p>.</span><span class=nx>accPrios</span><span class=p>),</span><span class=w> </span><span class=kd>func</span><span class=p>(</span><span class=nx>i</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=kt>bool</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=nx>pl</span><span class=p>.</span><span class=nx>accPrios</span><span class=p>[</span><span class=nx>i</span><span class=p>]</span><span class=w> </span><span class=o>&gt;=</span><span class=w> </span><span class=nx>randVal</span><span class=w>            </span><span class=c1>// 二分查找第一个 &gt;= randVal 的位置</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>})</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>pl</span><span class=p>.</span><span class=nx>progs</span><span class=p>[</span><span class=nx>idx</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>举例说明：假设 corpus 中有三个程序，分别携带 2、5、3 个 signal。累积前缀和为 <code>[2, 7, 10]</code>。生成的随机值落在 <code>[0,2]</code> 时选中第一个程序，落在 <code>[3,7]</code> 时选中第二个，落在 <code>[8,10]</code> 时选中第三个——选择概率严格正比于 signal 数量（20%、50%、30%）。</p><p>测试用例 <code>TestChooseProgram</code> 验证了这一性质：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/corpus/prio_test.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=nx>prob</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>float64</span><span class=p>(</span><span class=nx>prio</span><span class=p>)</span><span class=w> </span><span class=o>/</span><span class=w> </span><span class=nb>float64</span><span class=p>(</span><span class=nx>corpus</span><span class=p>.</span><span class=nx>sumPrios</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=nx>diff</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>math</span><span class=p>.</span><span class=nf>Abs</span><span class=p>(</span><span class=nx>prob</span><span class=o>*</span><span class=nx>maxIters</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=nb>float64</span><span class=p>(</span><span class=nx>counters</span><span class=p>[</span><span class=nx>p</span><span class=p>]))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=k>if</span><span class=w> </span><span class=nx>diff</span><span class=w> </span><span class=p>&gt;</span><span class=w> </span><span class=nx>eps</span><span class=o>*</span><span class=nx>maxIters</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>t</span><span class=p>.</span><span class=nf>Fatalf</span><span class=p>(</span><span class=s>&#34;the difference (%f) is higher than %f%%&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>diff</span><span class=p>,</span><span class=w> </span><span class=nx>eps</span><span class=o>*</span><span class=mi>100</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><h3 id=正反馈闭环>正反馈闭环</h3><p>这层优先级构成了一条<strong>正反馈闭环</strong>：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-gdscript3 data-lang=gdscript3><span class=line><span class=cl><span class=err>程序</span> <span class=n>A</span> <span class=err>覆盖更多</span> <span class=k>signal</span>
+</span></span><span class=line><span class=cl>       <span class=err>↓</span>
+</span></span><span class=line><span class=cl><span class=n>saveProgram</span><span class=p>(</span><span class=n>A</span><span class=p>,</span> <span class=k>signal</span><span class=p>)</span> <span class=err>→</span> <span class=n>A</span> <span class=err>在</span> <span class=n>corpus</span> <span class=err>中获得更高权重</span>
+</span></span><span class=line><span class=cl>       <span class=err>↓</span>
+</span></span><span class=line><span class=cl><span class=n>chooseProgram</span><span class=p>()</span> <span class=err>更频繁地选中</span> <span class=n>A</span> <span class=err>进行变异</span>
+</span></span><span class=line><span class=cl>       <span class=err>↓</span>
+</span></span><span class=line><span class=cl><span class=n>A</span> <span class=err>的变异后代更可能发现新</span> <span class=k>signal</span>
+</span></span><span class=line><span class=cl>       <span class=err>↓</span>
+</span></span><span class=line><span class=cl><span class=err>新</span> <span class=k>signal</span> <span class=err>再次进入</span> <span class=n>corpus</span> <span class=err>→</span> <span class=err>闭环</span>
+</span></span></code></pre></td></tr></table></div></div><p>这条闭环确保了 fuzzer 的火力集中在"高产"程序上，而非均匀分配。但也引入了风险——如果某个程序覆盖的都是"浅层" signal，反复变异它可能导致探索停滞。syzkaller 通过 ChoiceTable 的 5% 随机逃逸机制（后文详述）来缓解这一问题。</p><h3 id=focus-area引导-fuzzer-探索特定代码区域>Focus Area：引导 fuzzer 探索特定代码区域</h3><p>除了全局加权选择外，syzkaller 还支持 <strong>Focus Area</strong> 机制——允许用户指定感兴趣的区域，引导 fuzzer 优先探索这些区域：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/corpus/corpus.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>FocusArea</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>Name</span><span class=w>     </span><span class=kt>string</span><span class=w>              </span><span class=c1>// 区域名称（可空）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>CoverPCs</span><span class=w> </span><span class=kd>map</span><span class=p>[</span><span class=kt>uint64</span><span class=p>]</span><span class=kd>struct</span><span class=p>{}</span><span class=w> </span><span class=c1>// 该区域关联的覆盖 PC</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>Weight</span><span class=w>   </span><span class=kt>float64</span><span class=w>             </span><span class=c1>// 权重</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>当设置了 Focus Area 时，<code>ChooseProgram</code> 先按权重选择区域，再在区域内按 signal 加权选择程序：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/corpus/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>corpus</span><span class=w> </span><span class=o>*</span><span class=nx>Corpus</span><span class=p>)</span><span class=w> </span><span class=nf>ChooseProgram</span><span class=p>(</span><span class=nx>r</span><span class=w> </span><span class=o>*</span><span class=nx>rand</span><span class=p>.</span><span class=nx>Rand</span><span class=p>)</span><span class=w> </span><span class=o>*</span><span class=nx>prog</span><span class=p>.</span><span class=nx>Prog</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c1>// ...</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=kd>var</span><span class=w> </span><span class=nx>randArea</span><span class=w> </span><span class=o>*</span><span class=nx>focusAreaState</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>corpus</span><span class=p>.</span><span class=nx>focusAreas</span><span class=p>)</span><span class=w> </span><span class=p>&gt;</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>sum</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=mf>0.0</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>area</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>corpus</span><span class=p>.</span><span class=nx>focusAreas</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>sum</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=nx>area</span><span class=p>.</span><span class=nx>Weight</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>val</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>r</span><span class=p>.</span><span class=nf>Float64</span><span class=p>()</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>sum</span><span class=w>                </span><span class=c1>// 按权重随机选区域</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c1>// ... 遍历找到对应的区域</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>randArea</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=nx>randArea</span><span class=p>.</span><span class=nf>chooseProgram</span><span class=p>(</span><span class=nx>r</span><span class=p>)</span><span class=w>        </span><span class=c1>// 在区域内按 signal 加权选</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>corpus</span><span class=p>.</span><span class=nf>chooseProgram</span><span class=p>(</span><span class=nx>r</span><span class=p>)</span><span class=w>              </span><span class=c1>// 无 Focus Area 时全局选</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>测试 <code>TestFocusAreas</code> 验证了三个权重为 10:30:60 的 Focus Area，选择比例严格满足 10%:30%:60%。</p><h3 id=corpussave-的去重与合并>Corpus.Save 的去重与合并</h3><p>当一个程序已存在于 corpus 中（相同的序列化签名），新的 signal 会被 <strong>合并</strong>到已有 Item，而非创建新条目：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/corpus/corpus.go (简化)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>corpus</span><span class=w> </span><span class=o>*</span><span class=nx>Corpus</span><span class=p>)</span><span class=w> </span><span class=nf>Save</span><span class=p>(</span><span class=nx>inp</span><span class=w> </span><span class=o>*</span><span class=nx>prog</span><span class=p>.</span><span class=nx>Input</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>sig</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>string</span><span class=p>(</span><span class=nx>inp</span><span class=p>.</span><span class=nx>Prog</span><span class=p>.</span><span class=nf>Serialize</span><span class=p>())</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>old</span><span class=p>,</span><span class=w> </span><span class=nx>exists</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>corpus</span><span class=p>.</span><span class=nx>progsMap</span><span class=p>[</span><span class=nx>sig</span><span class=p>];</span><span class=w> </span><span class=nx>exists</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c1>// 合并新 signal 到已有 Item</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>newSignal</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>old</span><span class=p>.</span><span class=nx>Signal</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>newSignal</span><span class=p>.</span><span class=nf>Merge</span><span class=p>(</span><span class=nx>inp</span><span class=p>.</span><span class=nx>Signal</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c1>// ... 更新 Item</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w> </span><span class=k>else</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c1>// 新程序，创建新 Item 并 saveProgram</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>corpus</span><span class=p>.</span><span class=nf>saveProgram</span><span class=p>(</span><span class=nx>inp</span><span class=p>.</span><span class=nx>Prog</span><span class=p>,</span><span class=w> </span><span class=nx>inp</span><span class=p>.</span><span class=nx>Signal</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><hr><h2 id=第三层choicetable系统调用间优先级矩阵>第三层：ChoiceTable——系统调用间优先级矩阵</h2><p>如果说前两层决定了"选哪个程序"，那么 ChoiceTable 决定的是"在已有一个 syscall 的上下文中，下一个该选什么 syscall"。这是一张 <strong>N×N 的优先级矩阵</strong>，其中 N 是可用 syscall 的数量。</p><h3 id=设计动机>设计动机</h3><p>考虑这样一个场景：程序中已经有了一个 <code>open("/tmp/file")</code> 调用。下一个 syscall 选什么更有可能触发新覆盖？</p><p>直觉上，选 <code>read(fd)</code> 比选 <code>getpid()</code> 更有价值——因为 <code>open</code> 产生了一个文件描述符资源，而 <code>read</code> 消费这个资源，两个 syscall 的组合更有可能探索到深层内核路径。</p><p>syzkaller 将这种"谁跟谁配对更好"的直觉量化为一张优先级矩阵。矩阵的每个元素 <code>prio[i][j]</code> 表示：在已知有 syscall i 的上下文中，选择 syscall j 的优先级有多高。</p><h3 id=choicetable-结构体>ChoiceTable 结构体</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>type</span><span class=w> </span><span class=nx>ChoiceTable</span><span class=w> </span><span class=kd>struct</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>target</span><span class=w> </span><span class=o>*</span><span class=nx>Target</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>runs</span><span class=w>   </span><span class=p>[][]</span><span class=kt>int32</span><span class=w>        </span><span class=c1>// 累积前缀和数组（用于快速二分查找）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>calls</span><span class=w>  </span><span class=p>[]</span><span class=o>*</span><span class=nx>Syscall</span><span class=w>       </span><span class=c1>// 可生成的 syscall 列表</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p><code>runs</code> 是核心数据结构。对于每一行 <code>runs[i]</code>，它存储了 <code>prio[i][0..N-1]</code> 的累积前缀和。查找时使用二分搜索，时间复杂度 O(log N)。</p><h3 id=静态优先级基于参数类型的资源分析>静态优先级：基于参数类型的资源分析</h3><p>静态优先级是在编译期（更准确地说，是在初始化时）通过分析所有 syscall 的参数类型来计算的。</p><h4 id=第一步calcresourceusage提取资源使用关系>第一步：calcResourceUsage——提取资源使用关系</h4><p><code>calcResourceUsage</code> 遍历所有 syscall 的所有参数类型，记录每个 syscall 对各类资源的使用情况：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>target</span><span class=w> </span><span class=o>*</span><span class=nx>Target</span><span class=p>)</span><span class=w> </span><span class=nf>calcResourceUsage</span><span class=p>(</span><span class=nx>enabled</span><span class=w> </span><span class=kd>map</span><span class=p>[</span><span class=o>*</span><span class=nx>Syscall</span><span class=p>]</span><span class=kt>bool</span><span class=p>)</span><span class=w> </span><span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=kd>map</span><span class=p>[</span><span class=kt>int</span><span class=p>]</span><span class=nx>weights</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>uses</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>make</span><span class=p>(</span><span class=kd>map</span><span class=p>[</span><span class=kt>string</span><span class=p>]</span><span class=kd>map</span><span class=p>[</span><span class=kt>int</span><span class=p>]</span><span class=nx>weights</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nf>ForeachType</span><span class=p>(</span><span class=nx>target</span><span class=p>.</span><span class=nx>Syscalls</span><span class=p>,</span><span class=w> </span><span class=kd>func</span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=nx>Type</span><span class=p>,</span><span class=w> </span><span class=nx>ctx</span><span class=w> </span><span class=o>*</span><span class=nx>TypeCtx</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>switch</span><span class=w> </span><span class=nx>a</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>t</span><span class=p>.(</span><span class=kd>type</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>case</span><span class=w> </span><span class=o>*</span><span class=nx>ResourceType</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=c1>// 记录对 fd[sock] 等资源类型的使用</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>str</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=s>&#34;res&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=k>for</span><span class=w> </span><span class=nx>i</span><span class=p>,</span><span class=w> </span><span class=nx>k</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>a</span><span class=p>.</span><span class=nx>Desc</span><span class=p>.</span><span class=nx>Kind</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nx>str</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=s>&#34;-&#34;</span><span class=w> </span><span class=o>+</span><span class=w> </span><span class=nx>k</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nx>w</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>int32</span><span class=p>(</span><span class=mi>10</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=k>if</span><span class=w> </span><span class=nx>i</span><span class=w> </span><span class=p>&lt;</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>a</span><span class=p>.</span><span class=nx>Desc</span><span class=p>.</span><span class=nx>Kind</span><span class=p>)</span><span class=o>-</span><span class=mi>1</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                    </span><span class=nx>w</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=mi>2</span><span class=w>                              </span><span class=c1>// 非最具体的层级权重低</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nf>noteUsage</span><span class=p>(</span><span class=nx>uses</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>,</span><span class=w> </span><span class=nx>w</span><span class=p>,</span><span class=w> </span><span class=nx>ctx</span><span class=p>.</span><span class=nx>Dir</span><span class=p>,</span><span class=w> </span><span class=nx>str</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>case</span><span class=w> </span><span class=o>*</span><span class=nx>PtrType</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=k>if</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>ok</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>a</span><span class=p>.</span><span class=nx>Elem</span><span class=p>.(</span><span class=o>*</span><span class=nx>StructType</span><span class=p>);</span><span class=w> </span><span class=nx>ok</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nf>noteUsagef</span><span class=p>(</span><span class=nx>uses</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>,</span><span class=w> </span><span class=mi>10</span><span class=p>,</span><span class=w> </span><span class=nx>ctx</span><span class=p>.</span><span class=nx>Dir</span><span class=p>,</span><span class=w> </span><span class=s>&#34;ptrto-%v&#34;</span><span class=p>,</span><span class=w> </span><span class=nx>a</span><span class=p>.</span><span class=nx>Elem</span><span class=p>.</span><span class=nf>Name</span><span class=p>())</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=c1>// ... UnionType, ArrayType 类似处理</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>case</span><span class=w> </span><span class=o>*</span><span class=nx>BufferType</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=k>if</span><span class=w> </span><span class=nx>a</span><span class=p>.</span><span class=nx>Kind</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=nx>BufferFilename</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nf>noteUsage</span><span class=p>(</span><span class=nx>uses</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>,</span><span class=w> </span><span class=mi>10</span><span class=p>,</span><span class=w> </span><span class=nx>DirIn</span><span class=p>,</span><span class=w> </span><span class=s>&#34;filename&#34;</span><span class=p>)</span><span class=w>  </span><span class=c1>// 文件名是强关联</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>case</span><span class=w> </span><span class=o>*</span><span class=nx>VmaType</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nf>noteUsage</span><span class=p>(</span><span class=nx>uses</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>,</span><span class=w> </span><span class=mi>5</span><span class=p>,</span><span class=w> </span><span class=nx>ctx</span><span class=p>.</span><span class=nx>Dir</span><span class=p>,</span><span class=w> </span><span class=s>&#34;vma&#34;</span><span class=p>)</span><span class=w>          </span><span class=c1>// 内存地址权重中等</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>})</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>uses</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>每个记录包含 <code>in</code>（只读使用）和 <code>inout</code>（读写使用）两个权重。例如，<code>open</code> 的第一个参数是 <code>filename</code>（buffer），<code>dir=DirIn</code>；它的返回值是 <code>fd</code>（resource），<code>dir=DirOut</code>。</p><h4 id=第二步基于使用关系计算优先级>第二步：基于使用关系计算优先级</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>w0</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>weights</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>w1</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>weights</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>if</span><span class=w> </span><span class=nx>w0</span><span class=p>.</span><span class=nx>call</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=nx>w1</span><span class=p>.</span><span class=nx>call</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=k>continue</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c1>// 核心公式：生产者→消费者方向优先级更高</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prios</span><span class=p>[</span><span class=nx>w0</span><span class=p>.</span><span class=nx>call</span><span class=p>][</span><span class=nx>w1</span><span class=p>.</span><span class=nx>call</span><span class=p>]</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=nx>w0</span><span class=p>.</span><span class=nx>inout</span><span class=o>*</span><span class=nx>w1</span><span class=p>.</span><span class=nx>in</span><span class=o>*</span><span class=mi>3</span><span class=o>/</span><span class=mi>2</span><span class=w> </span><span class=o>+</span><span class=w> </span><span class=nx>w0</span><span class=p>.</span><span class=nx>inout</span><span class=o>*</span><span class=nx>w1</span><span class=p>.</span><span class=nx>inout</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>这个公式的设计非常精巧：</p><ul><li><code>w0.inout * w1.in * 3/2</code>：c0 产生（inout）某个资源，c1 消费（in）该资源 → <strong>高优先级</strong>。额外乘以 3/2 偏向"生产→消费"方向。</li><li><code>w0.inout * w1.inout</code>：两者都读写该资源 → 中等优先级（互相影响）。</li><li><code>w0.in * w1.in</code>：两者都只读输入该资源 → 公式中无对应项（没有资源流动，不产生优先级）。</li></ul><p>以 <code>open</code> 和 <code>read</code> 为例：</p><ul><li><code>open</code> 的输出包含 <code>fd</code>（resource, <code>inout</code> 权重 10）</li><li><code>read</code> 的输入包含 <code>fd</code>（resource, <code>in</code> 权重 10）</li><li><code>prio[open][read] += 10 * 10 * 3/2 + 10 * 10 = 150 + 100 = 250</code></li></ul><p>反过来，<code>read</code> 的输出不含资源，因此 <code>prio[read][open]</code> 会低得多。</p><h4 id=第三步自优先级--最大值--34>第三步：自优先级 = 最大值 × 3/4</h4><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=k>for</span><span class=w> </span><span class=nx>c</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>enabled</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>max</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>slices</span><span class=p>.</span><span class=nf>Max</span><span class=p>(</span><span class=nx>prios</span><span class=p>[</span><span class=nx>c</span><span class=p>.</span><span class=nx>ID</span><span class=p>])</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>max</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prios</span><span class=p>[</span><span class=nx>c</span><span class=p>.</span><span class=nx>ID</span><span class=p>][</span><span class=nx>c</span><span class=p>.</span><span class=nx>ID</span><span class=p>]</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=mi>1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w> </span><span class=k>else</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prios</span><span class=p>[</span><span class=nx>c</span><span class=p>.</span><span class=nx>ID</span><span class=p>][</span><span class=nx>c</span><span class=p>.</span><span class=nx>ID</span><span class=p>]</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>max</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=mi>3</span><span class=w> </span><span class=o>/</span><span class=w> </span><span class=mi>4</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>自优先级（即连续两次调用同一个 syscall）设为该行最大值的 3/4。既不太高（避免无限重复同一调用），也不太低（连续调用同一 syscall 有时是合理的，如多次 <code>write</code>）。</p><p>测试 <code>TestStaticPriorities</code> 验证了这一点：对 <code>open → {read, write, mmap}</code> 组合，<code>open</code> 被选为后继的概率显著高于反向。</p><h3 id=动态优先级基于-corpus-共现频率>动态优先级：基于 corpus 共现频率</h3><p>除了静态分析，syzkaller 还统计 corpus 中每个 syscall 对的共现频率：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>target</span><span class=w> </span><span class=o>*</span><span class=nx>Target</span><span class=p>)</span><span class=w> </span><span class=nf>calcDynamicPrio</span><span class=p>(</span><span class=nx>corpus</span><span class=w> </span><span class=p>[]</span><span class=o>*</span><span class=nx>Prog</span><span class=p>,</span><span class=w> </span><span class=nx>enabled</span><span class=w> </span><span class=kd>map</span><span class=p>[</span><span class=o>*</span><span class=nx>Syscall</span><span class=p>]</span><span class=kt>bool</span><span class=p>)</span><span class=w> </span><span class=p>[][]</span><span class=kt>int32</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>prios</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>make</span><span class=p>([][]</span><span class=kt>int32</span><span class=p>,</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>target</span><span class=p>.</span><span class=nx>Syscalls</span><span class=p>))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c1>// ... 初始化</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>p</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>corpus</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>for</span><span class=w> </span><span class=nx>idx0</span><span class=p>,</span><span class=w> </span><span class=nx>c0</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>p</span><span class=p>.</span><span class=nx>Calls</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>c1</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>p</span><span class=p>.</span><span class=nx>Calls</span><span class=p>[</span><span class=nx>idx0</span><span class=o>+</span><span class=mi>1</span><span class=p>:]</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nx>prios</span><span class=p>[</span><span class=nx>c0</span><span class=p>.</span><span class=nx>Meta</span><span class=p>.</span><span class=nx>ID</span><span class=p>][</span><span class=nx>c1</span><span class=p>.</span><span class=nx>Meta</span><span class=p>.</span><span class=nx>ID</span><span class=p>]</span><span class=o>++</span><span class=w>     </span><span class=c1>// 统计共现次数</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>for</span><span class=w> </span><span class=nx>i</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>prios</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>for</span><span class=w> </span><span class=nx>j</span><span class=p>,</span><span class=w> </span><span class=nx>val</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>prios</span><span class=p>[</span><span class=nx>i</span><span class=p>]</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=c1>// 使用 sqrt() 压缩高计数的影响</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=c1>// &#34;出现 50 次和 100 次没区别&#34;</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>prios</span><span class=p>[</span><span class=nx>i</span><span class=p>][</span><span class=nx>j</span><span class=p>]</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>int32</span><span class=p>(</span><span class=mf>2.0</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>math</span><span class=p>.</span><span class=nf>Sqrt</span><span class=p>(</span><span class=nb>float64</span><span class=p>(</span><span class=nx>val</span><span class=p>)))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nf>normalizePrios</span><span class=p>(</span><span class=nx>prios</span><span class=p>,</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>enabled</span><span class=p>))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>prios</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>动态优先级的核心洞察是：<strong>&ldquo;某些 syscall 经常一起出现，比它们出现了多少次更重要&rdquo;</strong>。因此使用 <code>sqrt()</code> 压缩计数——共现 50 次和 100 次的差异被大幅缩小，避免高频出现的 syscall 对完全主导选择。</p><h3 id=归一化n--10-的预算分配>归一化：|N| × 10 的预算分配</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>normalizePrios</span><span class=p>(</span><span class=nx>prios</span><span class=w> </span><span class=p>[][]</span><span class=kt>int32</span><span class=p>,</span><span class=w> </span><span class=nx>n</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>total</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=mi>10</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nb>int32</span><span class=p>(</span><span class=nx>n</span><span class=p>)</span><span class=w>               </span><span class=c1>// 每行总预算 = |N| × 10</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>prio</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>prios</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>sum</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>int32</span><span class=p>(</span><span class=mi>0</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>p</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>prio</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>sum</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=nx>p</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>if</span><span class=w> </span><span class=nx>sum</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=k>continue</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>for</span><span class=w> </span><span class=nx>i</span><span class=p>,</span><span class=w> </span><span class=nx>p</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>prio</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>prio</span><span class=p>[</span><span class=nx>i</span><span class=p>]</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>p</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>total</span><span class=w> </span><span class=o>/</span><span class=w> </span><span class=nx>sum</span><span class=w>     </span><span class=c1>// 按比例缩放</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>归一化确保每一行的优先级总和为 <code>|N| × 10</code>（N 为可用 syscall 数量）。这意味着：即使有 400 个 syscall，每个 syscall 平均仍有 10 个"优先级点数"，保证了选择的基本均匀性。</p><h3 id=buildchoicetable合并静态与动态>BuildChoiceTable：合并静态与动态</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>target</span><span class=w> </span><span class=o>*</span><span class=nx>Target</span><span class=p>)</span><span class=w> </span><span class=nf>BuildChoiceTable</span><span class=p>(</span><span class=nx>corpus</span><span class=w> </span><span class=p>[]</span><span class=o>*</span><span class=nx>Prog</span><span class=p>,</span><span class=w> </span><span class=nx>enabled</span><span class=w> </span><span class=kd>map</span><span class=p>[</span><span class=o>*</span><span class=nx>Syscall</span><span class=p>]</span><span class=kt>bool</span><span class=p>)</span><span class=w> </span><span class=o>*</span><span class=nx>ChoiceTable</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>prios</span><span class=p>,</span><span class=w> </span><span class=nx>enabledCalls</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>target</span><span class=p>.</span><span class=nf>CalculatePriorities</span><span class=p>(</span><span class=nx>corpus</span><span class=p>,</span><span class=w> </span><span class=nx>enabled</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c1>// ... 构建累积前缀和数组</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>run</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>make</span><span class=p>([][]</span><span class=kt>int32</span><span class=p>,</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>target</span><span class=p>.</span><span class=nx>Syscalls</span><span class=p>))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>for</span><span class=w> </span><span class=nx>i</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>run</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>run</span><span class=p>[</span><span class=nx>i</span><span class=p>]</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>make</span><span class=p>([]</span><span class=kt>int32</span><span class=p>,</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>target</span><span class=p>.</span><span class=nx>Syscalls</span><span class=p>))</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=kd>var</span><span class=w> </span><span class=nx>sum</span><span class=w> </span><span class=kt>int32</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>for</span><span class=w> </span><span class=nx>j</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>run</span><span class=p>[</span><span class=nx>i</span><span class=p>]</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=k>if</span><span class=w> </span><span class=nx>enabledSlice</span><span class=p>[</span><span class=nx>j</span><span class=p>]</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nx>sum</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=nx>prios</span><span class=p>[</span><span class=nx>i</span><span class=p>][</span><span class=nx>j</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>run</span><span class=p>[</span><span class=nx>i</span><span class=p>][</span><span class=nx>j</span><span class=p>]</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>sum</span><span class=w>               </span><span class=c1>// 累积前缀和</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=o>&amp;</span><span class=nx>ChoiceTable</span><span class=p>{</span><span class=nx>target</span><span class=p>,</span><span class=w> </span><span class=nx>run</span><span class=p>,</span><span class=w> </span><span class=nx>generatableCalls</span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>静态优先级和动态优先级简单相加后归一化，构成最终矩阵。<code>CalculatePriorities</code> 中的合并逻辑：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=nx>static</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>target</span><span class=p>.</span><span class=nf>calcStaticPriorities</span><span class=p>(</span><span class=nx>enabled</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=k>if</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>corpus</span><span class=p>)</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>dynamic</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>target</span><span class=p>.</span><span class=nf>calcDynamicPrio</span><span class=p>(</span><span class=nx>corpus</span><span class=p>,</span><span class=w> </span><span class=nx>enabled</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>for</span><span class=w> </span><span class=nx>i</span><span class=p>,</span><span class=w> </span><span class=nx>prios</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>dynamic</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>for</span><span class=w> </span><span class=nx>j</span><span class=p>,</span><span class=w> </span><span class=nx>p</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>prios</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>static</span><span class=p>[</span><span class=nx>i</span><span class=p>][</span><span class=nx>j</span><span class=p>]</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=nx>p</span><span class=w>               </span><span class=c1>// 简单相加</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><h3 id=choose5-随机逃逸>choose：5% 随机逃逸</h3><p><code>choose</code> 方法实现了最终的 syscall 选择：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/prio.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>ct</span><span class=w> </span><span class=o>*</span><span class=nx>ChoiceTable</span><span class=p>)</span><span class=w> </span><span class=nf>choose</span><span class=p>(</span><span class=nx>r</span><span class=w> </span><span class=o>*</span><span class=nx>rand</span><span class=p>.</span><span class=nx>Rand</span><span class=p>,</span><span class=w> </span><span class=nx>bias</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=kt>int</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>r</span><span class=p>.</span><span class=nf>Intn</span><span class=p>(</span><span class=mi>100</span><span class=p>)</span><span class=w> </span><span class=p>&lt;</span><span class=w> </span><span class=mi>5</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c1>// 5% 概率完全随机选择，保证探索性</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=nx>ct</span><span class=p>.</span><span class=nx>calls</span><span class=p>[</span><span class=nx>r</span><span class=p>.</span><span class=nf>Intn</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>ct</span><span class=p>.</span><span class=nx>calls</span><span class=p>))].</span><span class=nx>ID</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>bias</span><span class=w> </span><span class=p>&lt;</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>bias</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>ct</span><span class=p>.</span><span class=nx>calls</span><span class=p>[</span><span class=nx>r</span><span class=p>.</span><span class=nf>Intn</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>ct</span><span class=p>.</span><span class=nx>calls</span><span class=p>))].</span><span class=nx>ID</span><span class=w>  </span><span class=c1>// 无偏时随机选一个起点</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>run</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>ct</span><span class=p>.</span><span class=nx>runs</span><span class=p>[</span><span class=nx>bias</span><span class=p>]</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>runSum</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>int</span><span class=p>(</span><span class=nx>run</span><span class=p>[</span><span class=nb>len</span><span class=p>(</span><span class=nx>run</span><span class=p>)</span><span class=o>-</span><span class=mi>1</span><span class=p>])</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>x</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nb>int32</span><span class=p>(</span><span class=nx>r</span><span class=p>.</span><span class=nf>Intn</span><span class=p>(</span><span class=nx>runSum</span><span class=p>)</span><span class=w> </span><span class=o>+</span><span class=w> </span><span class=mi>1</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>res</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>sort</span><span class=p>.</span><span class=nf>Search</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>run</span><span class=p>),</span><span class=w> </span><span class=kd>func</span><span class=p>(</span><span class=nx>i</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=kt>bool</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=nx>run</span><span class=p>[</span><span class=nx>i</span><span class=p>]</span><span class=w> </span><span class=o>&gt;=</span><span class=w> </span><span class=nx>x</span><span class=w>                           </span><span class=c1>// 二分查找</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>})</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>res</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>5% 的完全随机选择是一个关键的<strong>逃逸机制</strong>：无论优先级矩阵如何分布，始终有 5% 的概率跳出当前偏好。这防止了 fuzzer 在某些"看似高产实则已经饱和"的 syscall 对上浪费资源。</p><h3 id=choicetable-的动态更新>ChoiceTable 的动态更新</h3><p>ChoiceTable 不是一成不变的，它会随着 corpus 的增长而更新：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/fuzzer/fuzzer.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>fuzzer</span><span class=w> </span><span class=o>*</span><span class=nx>Fuzzer</span><span class=p>)</span><span class=w> </span><span class=nf>ChoiceTable</span><span class=p>()</span><span class=w> </span><span class=o>*</span><span class=nx>prog</span><span class=p>.</span><span class=nx>ChoiceTable</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>progs</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>Config</span><span class=p>.</span><span class=nx>Corpus</span><span class=p>.</span><span class=nf>Programs</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c1>// 小 corpus 每 33 个程序更新一次，大 corpus 每 333 个</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>regenerateEveryProgs</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=mi>333</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>progs</span><span class=p>)</span><span class=w> </span><span class=p>&lt;</span><span class=w> </span><span class=mi>100</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>regenerateEveryProgs</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=mi>33</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>ctProgs</span><span class=o>+</span><span class=nx>regenerateEveryProgs</span><span class=w> </span><span class=p>&lt;</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>progs</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>select</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>case</span><span class=w> </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>ctRegenerate</span><span class=w> </span><span class=o>&lt;-</span><span class=w> </span><span class=kd>struct</span><span class=p>{}{}:</span><span class=w>     </span><span class=c1>// 异步触发重建</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>default</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=c1>// 已有重建在进行，跳过</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>ct</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>更新遵循<strong>只增不减原则</strong>：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// pkg/fuzzer/fuzzer.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>fuzzer</span><span class=w> </span><span class=o>*</span><span class=nx>Fuzzer</span><span class=p>)</span><span class=w> </span><span class=nf>updateChoiceTable</span><span class=p>(</span><span class=nx>programs</span><span class=w> </span><span class=p>[]</span><span class=o>*</span><span class=nx>prog</span><span class=p>.</span><span class=nx>Prog</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>newCt</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>target</span><span class=p>.</span><span class=nf>BuildChoiceTable</span><span class=p>(</span><span class=nx>programs</span><span class=p>,</span><span class=w> </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>Config</span><span class=p>.</span><span class=nx>EnabledCalls</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>ctMu</span><span class=p>.</span><span class=nf>Lock</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>defer</span><span class=w> </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>ctMu</span><span class=p>.</span><span class=nf>Unlock</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>programs</span><span class=p>)</span><span class=w> </span><span class=o>&gt;=</span><span class=w> </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>ctProgs</span><span class=w> </span><span class=p>{</span><span class=w>           </span><span class=c1>// 只有更大才替换</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>ctProgs</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>len</span><span class=p>(</span><span class=nx>programs</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>fuzzer</span><span class=p>.</span><span class=nx>ct</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>newCt</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>重建通过独立的 goroutine 异步执行（<code>choiceTableUpdater</code>），不阻塞 fuzzing 主循环。</p><hr><h2 id=第四层参数变异优先级类型驱动变异资源分配>第四层：参数变异优先级——类型驱动变异资源分配</h2><p>前三层回答了"选哪个程序"和"选哪个 syscall"，当变异操作进行时，还需要回答：<strong>选哪个参数来变异？</strong></p><h3 id=变异操作权重>变异操作权重</h3><p>syzkaller 定义了五种变异操作，每种有固定的权重：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/mutation.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>var</span><span class=w> </span><span class=nx>DefaultMutateOpts</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>MutateOpts</span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>SquashWeight</span><span class=p>:</span><span class=w>     </span><span class=mi>50</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>SpliceWeight</span><span class=p>:</span><span class=w>     </span><span class=mi>200</span><span class=p>,</span><span class=w>       </span><span class=c1>// 最高权重</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>InsertWeight</span><span class=p>:</span><span class=w>     </span><span class=mi>100</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>MutateArgWeight</span><span class=p>:</span><span class=w>  </span><span class=mi>100</span><span class=p>,</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>RemoveCallWeight</span><span class=p>:</span><span class=w> </span><span class=mi>10</span><span class=p>,</span><span class=w>        </span><span class=c1>// 最低权重</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>选择时按总权重 460 随机抽样：Splice（拼接两个程序）占比 43.5%，Insert（插入新调用）和 MutateArg（变异参数）各占 21.7%，Squash（压缩）占 10.9%，Remove（删除调用）仅占 2.2%。</p><p>Splice 占比最大的原因是：将两个已知有价值的程序拼接在一起，是最有可能触发新覆盖的变异策略。</p><h3 id=choosecall按参数复杂度选择要变异的调用>chooseCall：按参数复杂度选择要变异的调用</h3><p>当操作类型为 <code>MutateArg</code> 时，首先需要选择程序中的哪个 call 来变异：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/mutation.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>chooseCall</span><span class=p>(</span><span class=nx>p</span><span class=w> </span><span class=o>*</span><span class=nx>Prog</span><span class=p>,</span><span class=w> </span><span class=nx>r</span><span class=w> </span><span class=o>*</span><span class=nx>randGen</span><span class=p>)</span><span class=w> </span><span class=kt>int</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=kd>var</span><span class=w> </span><span class=nx>prioSum</span><span class=w> </span><span class=kt>float64</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=kd>var</span><span class=w> </span><span class=nx>callPriorities</span><span class=w> </span><span class=p>[]</span><span class=kt>float64</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>for</span><span class=w> </span><span class=nx>_</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=k>range</span><span class=w> </span><span class=nx>p</span><span class=p>.</span><span class=nx>Calls</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=kd>var</span><span class=w> </span><span class=nx>totalPrio</span><span class=w> </span><span class=kt>float64</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nf>ForeachArg</span><span class=p>(</span><span class=nx>c</span><span class=p>,</span><span class=w> </span><span class=kd>func</span><span class=p>(</span><span class=nx>arg</span><span class=w> </span><span class=nx>Arg</span><span class=p>,</span><span class=w> </span><span class=nx>ctx</span><span class=w> </span><span class=o>*</span><span class=nx>ArgCtx</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>prio</span><span class=p>,</span><span class=w> </span><span class=nx>stopRecursion</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>arg</span><span class=p>.</span><span class=nf>Type</span><span class=p>().</span><span class=nf>getMutationPrio</span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>                </span><span class=nx>p</span><span class=p>.</span><span class=nx>Target</span><span class=p>,</span><span class=w> </span><span class=nx>arg</span><span class=p>,</span><span class=w> </span><span class=kc>false</span><span class=p>,</span><span class=w> </span><span class=nx>c</span><span class=p>.</span><span class=nx>Meta</span><span class=p>.</span><span class=nx>Attrs</span><span class=p>.</span><span class=nx>KFuzzTest</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>totalPrio</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=nx>prio</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>            </span><span class=nx>ctx</span><span class=p>.</span><span class=nx>Stop</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>stopRecursion</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=p>})</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prioSum</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=nx>totalPrio</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>callPriorities</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>append</span><span class=p>(</span><span class=nx>callPriorities</span><span class=p>,</span><span class=w> </span><span class=nx>prioSum</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>prioSum</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=mi>0</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=o>-</span><span class=mi>1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>sort</span><span class=p>.</span><span class=nf>SearchFloat64s</span><span class=p>(</span><span class=nx>callPriorities</span><span class=p>,</span><span class=w> </span><span class=nx>prioSum</span><span class=o>*</span><span class=nx>r</span><span class=p>.</span><span class=nf>Float64</span><span class=p>())</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>每个 call 的"变异价值"等于其所有参数的 <code>getMutationPrio</code> 之和。参数类型越复杂、变异空间越大，该 call 被选中变异的概率越高。</p><h3 id=getmutationprio各类型参数的变异优先级>getMutationPrio：各类型参数的变异优先级</h3><p><code>getMutationPrio</code> 为每种参数类型返回一个 <code>float64</code> 优先级，定义了三个关键常量：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=kd>const</span><span class=w> </span><span class=p>(</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>maxPriority</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>float64</span><span class=p>(</span><span class=mi>10</span><span class=p>)</span><span class=w>   </span><span class=c1>// 最高优先级</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>minPriority</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nb>float64</span><span class=p>(</span><span class=mi>1</span><span class=p>)</span><span class=w>    </span><span class=c1>// 最低（非零）优先级</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>dontMutate</span><span class=w>  </span><span class=p>=</span><span class=w> </span><span class=nb>float64</span><span class=p>(</span><span class=mi>0</span><span class=p>)</span><span class=w>    </span><span class=c1>// 不变异</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>)</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>各类型的优先级如下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span><span class=lnt>48
+</span><span class=lnt>49
+</span><span class=lnt>50
+</span><span class=lnt>51
+</span><span class=lnt>52
+</span><span class=lnt>53
+</span><span class=lnt>54
+</span><span class=lnt>55
+</span><span class=lnt>56
+</span><span class=lnt>57
+</span><span class=lnt>58
+</span><span class=lnt>59
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/mutation.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// IntType: 整数类型</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>IntType</span><span class=p>)</span><span class=w> </span><span class=nf>getMutationPrio</span><span class=p>(</span><span class=o>...</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>prio</span><span class=w> </span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=nx>stopRecursion</span><span class=w> </span><span class=kt>bool</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>plainPrio</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>math</span><span class=p>.</span><span class=nf>Log2</span><span class=p>(</span><span class=nb>float64</span><span class=p>(</span><span class=nx>t</span><span class=p>.</span><span class=nf>TypeBitSize</span><span class=p>()))</span><span class=w> </span><span class=o>+</span><span class=w> </span><span class=mf>0.1</span><span class=o>*</span><span class=nx>maxPriority</span><span class=w>  </span><span class=c1>// 32 位: log₂(32)+1=6.0, 64 位: log₂(64)+1=7.0</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>t</span><span class=p>.</span><span class=nx>Kind</span><span class=w> </span><span class=o>!=</span><span class=w> </span><span class=nx>IntRange</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=nx>plainPrio</span><span class=p>,</span><span class=w> </span><span class=kc>false</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>size</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>t</span><span class=p>.</span><span class=nx>RangeEnd</span><span class=w> </span><span class=o>-</span><span class=w> </span><span class=nx>t</span><span class=p>.</span><span class=nx>RangeBegin</span><span class=w> </span><span class=o>+</span><span class=w> </span><span class=mi>1</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>switch</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>case</span><span class=w> </span><span class=nx>size</span><span class=w> </span><span class=o>&lt;=</span><span class=w> </span><span class=mi>15</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nf>rangeSizePrio</span><span class=p>(</span><span class=nx>size</span><span class=p>)</span><span class=w>              </span><span class=c1>// 小范围，值得穷举</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>case</span><span class=w> </span><span class=nx>size</span><span class=w> </span><span class=o>&lt;=</span><span class=w> </span><span class=mi>256</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>maxPriority</span><span class=w>                       </span><span class=c1>// ≤256 个值，最高优先级</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>default</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>plainPrio</span><span class=w>                         </span><span class=c1>// 大范围等同于普通整数</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>prio</span><span class=p>,</span><span class=w> </span><span class=kc>false</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// StructType: 结构体（有 generator 时）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>StructType</span><span class=p>)</span><span class=w> </span><span class=nf>getMutationPrio</span><span class=p>(</span><span class=o>...</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>prio</span><span class=w> </span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=nx>stopRecursion</span><span class=w> </span><span class=kt>bool</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>target</span><span class=p>.</span><span class=nx>SpecialTypes</span><span class=p>[</span><span class=nx>t</span><span class=p>.</span><span class=nf>Name</span><span class=p>()]</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=kc>nil</span><span class=w> </span><span class=o>||</span><span class=w> </span><span class=nx>ignoreSpecial</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=nx>dontMutate</span><span class=p>,</span><span class=w> </span><span class=kc>false</span><span class=w>                </span><span class=c1>// 普通 struct 不变异</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>maxPriority</span><span class=p>,</span><span class=w> </span><span class=kc>true</span><span class=w>                    </span><span class=c1>// 有 generator 的 struct 整体替换，优先级最高</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// UnionType: 联合体</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>UnionType</span><span class=p>)</span><span class=w> </span><span class=nf>getMutationPrio</span><span class=p>(</span><span class=o>...</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>prio</span><span class=w> </span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=nx>stopRecursion</span><span class=w> </span><span class=kt>bool</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c1>// 单选项 union 或非特殊类型 → 不变异</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c1>// 多选项特殊 union → maxPriority（切换分支可触发不同内核路径）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=c1>// 多选项普通 union → maxPriority（继续递归变异子选项）</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// FlagsType: 标志位</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>FlagsType</span><span class=p>)</span><span class=w> </span><span class=nf>getMutationPrio</span><span class=p>(</span><span class=o>...</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>prio</span><span class=w> </span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=nx>stopRecursion</span><span class=w> </span><span class=kt>bool</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>prio</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nf>rangeSizePrio</span><span class=p>(</span><span class=nb>uint64</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>t</span><span class=p>.</span><span class=nx>Vals</span><span class=p>)))</span><span class=w>   </span><span class=c1>// 按取值数量线性增长</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>t</span><span class=p>.</span><span class=nx>BitMask</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=o>+=</span><span class=w> </span><span class=mf>0.1</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>maxPriority</span><span class=w>               </span><span class=c1>// BitMask 额外加 10% bonus</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>prio</span><span class=p>,</span><span class=w> </span><span class=kc>false</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// BufferType: 缓冲区</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>BufferType</span><span class=p>)</span><span class=w> </span><span class=nf>getMutationPrio</span><span class=p>(</span><span class=o>...</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>prio</span><span class=w> </span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=nx>stopRecursion</span><span class=w> </span><span class=kt>bool</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>if</span><span class=w> </span><span class=nx>t</span><span class=p>.</span><span class=nx>Kind</span><span class=w> </span><span class=o>==</span><span class=w> </span><span class=nx>BufferCompressed</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=nx>maxPriority</span><span class=p>,</span><span class=w> </span><span class=kc>false</span><span class=w>                </span><span class=c1>// 磁盘镜像等复杂数据 → 最高优先级</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=mf>0.8</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>maxPriority</span><span class=p>,</span><span class=w> </span><span class=kc>false</span><span class=w>             </span><span class=c1>// 普通 buffer → 8.0</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// PtrType: 指针</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>t</span><span class=w> </span><span class=o>*</span><span class=nx>PtrType</span><span class=p>)</span><span class=w> </span><span class=nf>getMutationPrio</span><span class=p>(</span><span class=o>...</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>prio</span><span class=w> </span><span class=kt>float64</span><span class=p>,</span><span class=w> </span><span class=nx>stopRecursion</span><span class=w> </span><span class=kt>bool</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=mf>0.3</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>maxPriority</span><span class=p>,</span><span class=w> </span><span class=kc>false</span><span class=w>             </span><span class=c1>// 指针本身 → 3.0</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// ConstType, CsumType: 常量和校验和</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=c1>// → dontMutate (0)</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><h3 id=rangesizeprio小范围值的变异优先级>rangeSizePrio：小范围值的变异优先级</h3><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/mutation.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=nf>rangeSizePrio</span><span class=p>(</span><span class=nx>size</span><span class=w> </span><span class=kt>uint64</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>prio</span><span class=w> </span><span class=kt>float64</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>switch</span><span class=w> </span><span class=nx>size</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>case</span><span class=w> </span><span class=mi>0</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>dontMutate</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>case</span><span class=w> </span><span class=mi>1</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>minPriority</span><span class=w>                      </span><span class=c1>// 只有一个值 → 无需变异</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>default</span><span class=p>:</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=c1>// 线性增长 + 上限封顶</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=nx>prio</span><span class=w> </span><span class=p>=</span><span class=w> </span><span class=nx>math</span><span class=p>.</span><span class=nf>Min</span><span class=p>(</span><span class=nb>float64</span><span class=p>(</span><span class=nx>size</span><span class=p>)</span><span class=o>/</span><span class=mi>3</span><span class=o>+</span><span class=mf>0.4</span><span class=o>*</span><span class=nx>maxPriority</span><span class=p>,</span><span class=w> </span><span class=mf>0.9</span><span class=o>*</span><span class=nx>maxPriority</span><span class=p>)</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>}</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>prio</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><p>这个函数的设计体现了一个实用主义原则：<code>size/3 + 0.4 × 10</code>，即基础分 4.0 加上按值数量线性增长的部分。当 <code>size=15</code> 时，优先级为 <code>5 + 4 = 9</code>，接近上限 <code>0.9 × 10 = 9</code>。超过 15 以后优先级封顶——因为 <code>FlagsType</code> 的注释说"大多数 syscall 的 flag 取值不超过 15 个"，再高也没必要增加优先级了。</p><h3 id=完整优先级汇总表>完整优先级汇总表</h3><div class=table-wrapper><table><thead><tr><th>参数类型</th><th>优先级</th><th>设计理由</th></tr></thead><tbody><tr><td>StructType（有 generator）</td><td><strong>10</strong></td><td>整体替换效果最好，<code>stopRecursion=true</code></td></tr><tr><td>UnionType（多选项）</td><td><strong>10</strong></td><td>切换分支可触发完全不同的内核路径</td></tr><tr><td>ArrayType（变长）</td><td><strong>10</strong></td><td>变异数组长度和元素</td></tr><tr><td>BufferCompressed</td><td><strong>10</strong></td><td>磁盘镜像等复杂数据，变异价值最高</td></tr><tr><td>IntType（Range ≤ 256）</td><td><strong>10</strong></td><td>有限范围值得尝试所有值</td></tr><tr><td>BufferType（普通）</td><td><strong>8.0</strong></td><td>blob 数据变异</td></tr><tr><td>IntType（普通）</td><td>6.0~7.0</td><td><code>log₂(bitsize) + 1.0</code>，32 位=6.0，64 位=7.0</td></tr><tr><td>ResourceType / VmaType / ProcType</td><td><strong>5.0</strong></td><td>替换资源句柄、内存地址</td></tr><tr><td>PtrType</td><td><strong>3.0</strong></td><td>指针变异中等价值</td></tr><tr><td>LenType</td><td><strong>1.0</strong></td><td>长度修改通常产生"不正确"的结果</td></tr><tr><td>ConstType / CsumType</td><td><strong>0</strong></td><td>不可变</td></tr><tr><td>SpecialPointer</td><td><strong>0</strong></td><td>暂不支持变异</td></tr></tbody></table></div><h3 id=choosearg参数级加权选择>chooseArg：参数级加权选择</h3><p>选定 call 后，还需要在 call 的所有参数中选一个来变异。<code>chooseArg</code> 使用与前述完全相同的累积和 + 二分查找模式：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt>1
+</span><span class=lnt>2
+</span><span class=lnt>3
+</span><span class=lnt>4
+</span><span class=lnt>5
+</span><span class=lnt>6
+</span><span class=lnt>7
+</span><span class=lnt>8
+</span><span class=lnt>9
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-go data-lang=go><span class=line><span class=cl><span class=c1>// prog/mutation.go</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>
+</span></span></span><span class=line><span class=cl><span class=kd>func</span><span class=w> </span><span class=p>(</span><span class=nx>ma</span><span class=w> </span><span class=o>*</span><span class=nx>mutationArgs</span><span class=p>)</span><span class=w> </span><span class=nf>chooseArg</span><span class=p>(</span><span class=nx>r</span><span class=w> </span><span class=o>*</span><span class=nx>rand</span><span class=p>.</span><span class=nx>Rand</span><span class=p>)</span><span class=w> </span><span class=p>(</span><span class=nx>Arg</span><span class=p>,</span><span class=w> </span><span class=nx>ArgCtx</span><span class=p>)</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>goal</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>ma</span><span class=p>.</span><span class=nx>prioSum</span><span class=w> </span><span class=o>*</span><span class=w> </span><span class=nx>r</span><span class=p>.</span><span class=nf>Float64</span><span class=p>()</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=nx>chosenIdx</span><span class=w> </span><span class=o>:=</span><span class=w> </span><span class=nx>sort</span><span class=p>.</span><span class=nf>Search</span><span class=p>(</span><span class=nb>len</span><span class=p>(</span><span class=nx>ma</span><span class=p>.</span><span class=nx>args</span><span class=p>),</span><span class=w> </span><span class=kd>func</span><span class=p>(</span><span class=nx>i</span><span class=w> </span><span class=kt>int</span><span class=p>)</span><span class=w> </span><span class=kt>bool</span><span class=w> </span><span class=p>{</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>        </span><span class=k>return</span><span class=w> </span><span class=nx>ma</span><span class=p>.</span><span class=nx>args</span><span class=p>[</span><span class=nx>i</span><span class=p>].</span><span class=nx>priority</span><span class=w> </span><span class=o>&gt;=</span><span class=w> </span><span class=nx>goal</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=p>})</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=w>    </span><span class=k>return</span><span class=w> </span><span class=nx>ma</span><span class=p>.</span><span class=nx>args</span><span class=p>[</span><span class=nx>chosenIdx</span><span class=p>].</span><span class=nx>arg</span><span class=p>,</span><span class=w> </span><span class=nx>ma</span><span class=p>.</span><span class=nx>args</span><span class=p>[</span><span class=nx>chosenIdx</span><span class=p>].</span><span class=nx>ctx</span><span class=w>
+</span></span></span><span class=line><span class=cl><span class=p>}</span><span class=w>
+</span></span></span></code></pre></td></tr></table></div></div><hr><h2 id=四层-priority-的协同工作流>四层 priority 的协同工作流</h2><p>将四层 priority 放在一起，完整的变异工作流如下：</p><div class=highlight><div class=chroma><table class=lntable><tr><td class=lntd><pre tabindex=0 class=chroma><code><span class=lnt> 1
+</span><span class=lnt> 2
+</span><span class=lnt> 3
+</span><span class=lnt> 4
+</span><span class=lnt> 5
+</span><span class=lnt> 6
+</span><span class=lnt> 7
+</span><span class=lnt> 8
+</span><span class=lnt> 9
+</span><span class=lnt>10
+</span><span class=lnt>11
+</span><span class=lnt>12
+</span><span class=lnt>13
+</span><span class=lnt>14
+</span><span class=lnt>15
+</span><span class=lnt>16
+</span><span class=lnt>17
+</span><span class=lnt>18
+</span><span class=lnt>19
+</span><span class=lnt>20
+</span><span class=lnt>21
+</span><span class=lnt>22
+</span><span class=lnt>23
+</span><span class=lnt>24
+</span><span class=lnt>25
+</span><span class=lnt>26
+</span><span class=lnt>27
+</span><span class=lnt>28
+</span><span class=lnt>29
+</span><span class=lnt>30
+</span><span class=lnt>31
+</span><span class=lnt>32
+</span><span class=lnt>33
+</span><span class=lnt>34
+</span><span class=lnt>35
+</span><span class=lnt>36
+</span><span class=lnt>37
+</span><span class=lnt>38
+</span><span class=lnt>39
+</span><span class=lnt>40
+</span><span class=lnt>41
+</span><span class=lnt>42
+</span><span class=lnt>43
+</span><span class=lnt>44
+</span><span class=lnt>45
+</span><span class=lnt>46
+</span><span class=lnt>47
+</span></code></pre></td><td class=lntd><pre tabindex=0 class=chroma><code class=language-gdscript3 data-lang=gdscript3><span class=line><span class=cl>                    <span class=err>┌──────────────────────────────┐</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>   <span class=n>corpus</span> <span class=err>中有</span> <span class=n>N</span> <span class=err>个程序</span>        <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>└──────────┬───────────────────┘</span>
+</span></span><span class=line><span class=cl>                               <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>┌──────────▼───────────────────┐</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>第二层：</span><span class=n>chooseProgram</span><span class=p>()</span>      <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>按</span> <span class=k>signal</span> <span class=err>数量加权随机选择</span>    <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>（或按</span> <span class=n>Focus</span> <span class=ne>Area</span> <span class=err>选区域）</span>   <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>└──────────┬───────────────────┘</span>
+</span></span><span class=line><span class=cl>                               <span class=err>│</span> <span class=err>选中程序</span> <span class=n>P</span>
+</span></span><span class=line><span class=cl>                    <span class=err>┌──────────▼───────────────────┐</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>选择变异操作类型</span>              <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=n>Splice</span><span class=p>(</span><span class=mi>43</span><span class=o>%</span><span class=p>)</span> <span class=o>&gt;</span> <span class=n>Insert</span><span class=p>(</span><span class=mi>22</span><span class=o>%</span><span class=p>)</span>    <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=o>&gt;</span> <span class=n>MutateArg</span><span class=p>(</span><span class=mi>22</span><span class=o>%</span><span class=p>)</span> <span class=o>&gt;</span> <span class=o>...</span>       <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>└──────────┬───────────────────┘</span>
+</span></span><span class=line><span class=cl>                               <span class=err>│</span> <span class=err>若</span> <span class=n>MutateArg</span>
+</span></span><span class=line><span class=cl>                    <span class=err>┌──────────▼───────────────────┐</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>第四层：</span><span class=n>chooseCall</span><span class=p>()</span>         <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>按参数复杂度加权选择</span> <span class=n>call</span>     <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>└──────────┬───────────────────┘</span>
+</span></span><span class=line><span class=cl>                               <span class=err>│</span> <span class=err>选中</span> <span class=n>call</span> <span class=n>C</span>
+</span></span><span class=line><span class=cl>                    <span class=err>┌──────────▼───────────────────┐</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>第四层：</span><span class=n>chooseArg</span><span class=p>()</span>          <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>按参数类型优先级选择</span> <span class=n>arg</span>      <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>└──────────┬───────────────────┘</span>
+</span></span><span class=line><span class=cl>                               <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>┌──────────▼───────────────────┐</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>若</span> <span class=n>Insert</span><span class=err>：第三层</span> <span class=n>choose</span><span class=p>()</span>   <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>按优先级矩阵选下一个</span> <span class=n>syscall</span> <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=mi>5</span><span class=o>%</span> <span class=err>完全随机逃逸</span>              <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>└──────────┬───────────────────┘</span>
+</span></span><span class=line><span class=cl>                               <span class=err>│</span> <span class=err>生成</span><span class=o>/</span><span class=err>变异后代</span> <span class=n>P</span><span class=s1>&#39;</span>
+</span></span><span class=line><span class=cl>                    <span class=err>┌──────────▼───────────────────┐</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>执行</span> <span class=n>P</span><span class=s1>&#39;，收集覆盖信息        │</span>
+</span></span><span class=line><span class=cl>                    <span class=err>└──────────┬───────────────────┘</span>
+</span></span><span class=line><span class=cl>                               <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>┌──────────▼───────────────────┐</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>第一层：</span><span class=n>signalPrio</span><span class=p>()</span>         <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>计算每个</span> <span class=n>call</span> <span class=err>的信号优先级</span>    <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=n>DiffRaw</span> <span class=err>→</span> <span class=err>只保留</span><span class=s2>&#34;更好的&#34;</span>     <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>└──────────┬───────────────────┘</span>
+</span></span><span class=line><span class=cl>                               <span class=err>│</span> <span class=err>有新</span> <span class=k>signal</span><span class=err>？</span>
+</span></span><span class=line><span class=cl>                    <span class=err>┌──────────▼───────────────────┐</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>第二层：</span><span class=n>saveProgram</span><span class=p>()</span>        <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=n>P</span><span class=s1>&#39; 进入 corpus，权重 = signal│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>│</span>  <span class=err>正反馈闭环开始</span>              <span class=err>│</span>
+</span></span><span class=line><span class=cl>                    <span class=err>└──────────────────────────────┘</span>
+</span></span></code></pre></td></tr></table></div></div><hr><h2 id=拓展性分析>拓展性分析</h2><h3 id=可能存在的问题>可能存在的问题</h3><p><strong>1. Focus Area 的"冷启动"问题</strong></p><p>当 Focus Area 配置了特定的 CoverPCs，但 corpus 中尚未有程序覆盖这些 PC 时，该区域为空（<code>len(area.progs) == 0</code>），会被跳过。这意味着 Focus Area 在初始阶段完全无效，直到有程序碰巧覆盖了目标区域。对于大型内核模块，这可能需要很长时间。</p><p>一个改进方向是：在 Focus Area 为空时，退化为按全局 corpus 选择，而非直接跳过该区域。</p><p><strong>2. ChoiceTable 重建的开销</strong></p><p>当前 ChoiceTable 每 33（小 corpus）或 333（大 corpus）个程序重建一次，<code>BuildChoiceTable</code> 的时间复杂度为 O(N²)，其中 N 是 syscall 数量。虽然通过 goroutine 异步执行不阻塞主循环，但当 corpus 增长非常快时（如多个 fuzzer 并行运行），可能仍会成为瓶颈。</p><p><strong>3. 动态优先级的简单加法合并</strong></p><p>静态优先级和动态优先级通过简单的加法合并。但两者的量纲和含义不同——静态优先级基于类型分析（理论价值），动态优先级基于共现统计（经验价值）。简单相加可能让静态分析的价值被统计噪声淹没，尤其是在 corpus 较小、统计不可靠的早期阶段。</p><p>引入加权系数或根据 corpus 大小动态调整静态/动态比例，可能是一个值得探索的方向。</p><p><strong>4. 5% 随机逃逸的固定比例</strong></p><p>5% 的完全随机选择是一个经验值，注释中也承认"There were no deep ideas nor any calculations behind these numbers"。不同的内核子系统或 fuzzing 阶段可能需要不同的探索/利用比例——例如在 fuzzing 早期需要更多探索（更高的随机比例），后期需要更多利用（更低的随机比例）。</p><h3 id=科研与工程价值>科研与工程价值</h3><p><strong>从科研角度看</strong>，syzkaller 的四层 priority 体系是一个经典的<strong>层次化反馈系统</strong>。底层（signal）提供原始信号，逐层抽象为程序选择、syscall 选择和参数选择策略。这种设计在强化学习（RL）中也有对应——signal 类似 reward，各层 priority 类似 policy，整个系统形成了一个无参数的在线学习过程。有趣的是，syzkaller 并没有使用 RL 或其他"高级"算法，而是通过精心设计的启发式规则达到了类似的效果。这引发了一个值得研究的问题：<strong>在模糊测试中，简单但领域知识丰富的启发式，是否比通用的学习算法更有效？</strong></p><p><strong>从工程角度看</strong>，四层 priority 的解耦设计值得借鉴。每一层都有明确的输入、输出和职责，修改某一层的策略不会影响其他层。例如，可以独立替换 ChoiceTable 的优先级计算算法（如引入 ML 模型），而不影响 signalPrio 或 corpus 选择逻辑。这种模块化设计使得 syzkaller 能够持续演进，而不必推翻整个架构。</p><hr><h2 id=设计哲学总结>设计哲学总结</h2><p>回顾四层 priority，我们可以提炼出 syzkaller 的几个核心设计原则：</p><ol><li><strong>&ldquo;成功调用比失败调用更有价值&rdquo;</strong>——<code>signalPrio</code> 中 <code>errno == 0</code> 获得 +2 的权重加分。</li><li><strong>&ldquo;覆盖越广的程序越值得深挖&rdquo;</strong>——corpus 优先级直接等于 signal 数量，形成正反馈闭环。</li><li><strong>&ldquo;生产者 → 消费者优先&rdquo;</strong>——ChoiceTable 静态优先级通过 <code>w0.inout * w1.in * 3/2</code> 偏向资源流动方向。</li><li><strong>&ldquo;高频共现对值得优先尝试&rdquo;</strong>——动态优先级通过 <code>sqrt()</code> 压缩计数，强调"是否共现"而非"共现多少次"。</li><li><strong>&ldquo;5% 随机保证不陷入局部最优&rdquo;</strong>——ChoiceTable 的 choose 方法始终有 5% 概率完全随机选择。</li><li><strong>&ldquo;复杂类型优先变异，常量不变异&rdquo;</strong>——<code>getMutationPrio</code> 为有 generator 的 Struct、多选项 Union、BufferCompressed 赋予最高优先级 10，而 ConstType 和 CsumType 为 0。</li></ol><p>这些原则的共同目标是：在有限的执行预算内，最大化发现新覆盖的概率。</p><h2 id=参考>参考</h2><ul><li><a class=link href=https://github.com/google/syzkaller/blob/master/pkg/signal/signal.go target=_blank rel=noopener>pkg/signal/signal.go</a> — Signal 数据结构与 DiffRaw 算法</li><li><a class=link href=https://github.com/google/syzkaller/blob/master/pkg/fuzzer/fuzzer.go target=_blank rel=noopener>pkg/fuzzer/fuzzer.go</a> — signalPrio 与 ChoiceTable 动态更新</li><li><a class=link href=https://github.com/google/syzkaller/blob/master/pkg/fuzzer/cover.go target=_blank rel=noopener>pkg/fuzzer/cover.go</a> — Cover 信号收集</li><li><a class=link href=https://github.com/google/syzkaller/blob/master/pkg/corpus/prio.go target=_blank rel=noopener>pkg/corpus/prio.go</a> — ProgramsList 加权选择与 Focus Area</li><li><a class=link href=https://github.com/google/syzkaller/blob/master/pkg/corpus/corpus.go target=_blank rel=noopener>pkg/corpus/corpus.go</a> — Corpus 去重与合并</li><li><a class=link href=https://github.com/google/syzkaller/blob/master/prog/prio.go target=_blank rel=noopener>prog/prio.go</a> — ChoiceTable 优先级矩阵</li><li><a class=link href=https://github.com/google/syzkaller/blob/master/prog/mutation.go target=_blank rel=noopener>prog/mutation.go</a> — 变异操作权重与 getMutationPrio</li></ul></section><footer class=article-footer><section class=article-tags><a href=/tags/fuzz/>Fuzz</a>
+<a href=/tags/syzkaller/>Syzkaller</a>
+<a href=/tags/kernel/>Kernel</a></section><section class=article-copyright><svg class="icon icon-tabler icon-tabler-copyright" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z"/><circle cx="12" cy="12" r="9"/><path d="M14.5 9a3.5 4 0 100 6"/></svg>
+<span>Licensed under CC BY-NC-SA 4.0</span></section><section>View: <span id=busuanzi_value_page_pv>Loading</span></section></footer></article><aside class=related-content--wrapper><h2 class=section-title>Related content</h2><div class=related-content><div class="flex article-list--tile"><article><a href=/p/syz-queue/><div class=article-details><h2 class=article-title>Syzkaller 的队列机制：从源码看内核模糊测试的调度哲学</h2></div></a></article><article><a href=/p/syz-minimization/><div class=article-details><h2 class=article-title>Syzkaller Testcase Minimization</h2></div></a></article><article><a href=/p/syz-repro/><div class=article-details><h2 class=article-title>Syz-repro</h2></div></a></article><article><a href=/p/buzzer/><div class=article-details><h2 class=article-title>Buzzer Fuzz</h2></div></a></article><article><a href=/p/syzlang/><div class=article-details><h2 class=article-title>syzkaller的syzlang机制探索</h2></div></a></article></div></div></aside><script src=https://giscus.app/client.js data-repo=apowerfulmei/apowerfulmei.github.io data-repo-id=R_kgDOOyWt8Q data-category=Announcements data-category-id=DIC_kwDOOyWt8c4CrPHr data-mapping=pathname data-strict=0 data-reactions-enabled=1 data-emit-metadata=0 data-input-position=top data-theme=light data-lang=en data-loading crossorigin=anonymous async></script><script>function setGiscusTheme(e){let t=document.querySelector("iframe.giscus-frame");t&&t.contentWindow.postMessage({giscus:{setConfig:{theme:e}}},"https://giscus.app")}(function(){addEventListener("message",t=>{if(event.origin!=="https://giscus.app")return;e()}),window.addEventListener("onColorSchemeChange",e);function e(){setGiscusTheme(document.documentElement.dataset.scheme==="light"?"light":"dark")}})()</script><footer class=site-footer><section class=copyright>&copy;
+2024 -
+2026 apowerfulmei</section><section class=powerby>总访客数：<span id=busuanzi_value_site_uv style=margin-right:50px>Loading</span> 总访问量：<span id=busuanzi_value_site_pv style=margin-right:50px>Loading</span>
+<a href=https://cloud.umami.is/share/Bjf4XBFngV0tHdVS/apowerfulmei.github.io style=color:blue target=_blank>访问详细统计</a><br><span id=span_show_age style=margin-right:50px><br>Built with <a href=https://gohugo.io/ target=_blank rel=noopener>Hugo</a><br>Theme <b><a href=https://github.com/CaiJimmy/hugo-theme-stack target=_blank rel=noopener data-version=3.33.0>Stack</a></b> designed by <a href=https://jimmycai.com target=_blank rel=noopener>Jimmy</a></section></footer><div class=pswp tabindex=-1 role=dialog aria-hidden=true><div class=pswp__bg></div><div class=pswp__scroll-wrap><div class=pswp__container><div class=pswp__item></div><div class=pswp__item></div><div class=pswp__item></div></div><div class="pswp__ui pswp__ui--hidden"><div class=pswp__top-bar><div class=pswp__counter></div><button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+<button class="pswp__button pswp__button--share" title=Share></button>
+<button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+<button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button><div class=pswp__preloader><div class=pswp__preloader__icn><div class=pswp__preloader__cut><div class=pswp__preloader__donut></div></div></div></div></div><div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap"><div class=pswp__share-tooltip></div></div><button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+</button>
+<button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)"></button><div class=pswp__caption><div class=pswp__caption__center></div></div></div></div></div><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.js integrity="sha256-ePwmChbbvXbsO02lbM3HoHbSHTHFAeChekF1xKJdleo=" crossorigin=anonymous defer></script><script src=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe-ui-default.min.js integrity="sha256-UKkzOn/w1mBxRmLLGrSeyB4e1xbrp4xylgAWb3M42pU=" crossorigin=anonymous defer></script><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/default-skin/default-skin.min.css crossorigin=anonymous><link rel=stylesheet href=https://cdn.jsdelivr.net/npm/photoswipe@4.1.3/dist/photoswipe.min.css crossorigin=anonymous></main></div><script src=https://cdn.jsdelivr.net/npm/node-vibrant@3.1.6/dist/vibrant.min.js integrity="sha256-awcR2jno4kI5X0zL8ex0vi2z+KMkF24hUW8WePSA9HM=" crossorigin=anonymous></script><script type=text/javascript src=/ts/main.c922af694cc257bf1ecc41c0dd7b0430f9114ec280ccf67cd2c6ad55f5316c4e.js defer></script><script>(function(){const e=document.createElement("link");e.href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;700&display=swap",e.type="text/css",e.rel="stylesheet",document.head.appendChild(e)})()</script><script defer src=https://cn.vercount.one/js></script><script defer src=https://cloud.umami.is/script.js data-website-id=4daf7b3c-b00f-4f08-833d-af909c284828></script></body></html>

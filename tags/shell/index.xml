@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Shell on apowerfulmei</title><link>https://apowerfulmei.github.io/tags/shell/</link><description>Recent content in Shell on apowerfulmei</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Mon, 16 Jun 2025 00:00:00 +0000</lastBuildDate><atom:link href="https://apowerfulmei.github.io/tags/shell/index.xml" rel="self" type="application/rss+xml"/><item><title>var目录清理</title><link>https://apowerfulmei.github.io/p/clean-var/</link><pubDate>Mon, 16 Jun 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/clean-var/</guid><description>&lt;h1 id="清理var目录"&gt;清理var目录
+&lt;/h1&gt;&lt;h2 id="清理过程"&gt;清理过程
+&lt;/h2&gt;&lt;p&gt;今天运行我的主机的时候突然提示var目录占满了，使用&lt;code&gt;df -h&lt;/code&gt;查看，19G空间都被占满了。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/clean-var/mem.png"
+width="758"
+height="136"
+srcset="https://apowerfulmei.github.io/p/clean-var/mem_hu_5931f203e735eaae.png 480w, https://apowerfulmei.github.io/p/clean-var/mem_hu_81dd9007645cb445.png 1024w"
+loading="lazy"
+alt="df"
+class="gallery-image"
+data-flex-grow="557"
+data-flex-basis="1337px"
+&gt;&lt;/p&gt;
+&lt;p&gt;随机我准备对var目录进行清理，到目录下查看存储量占用时，却发现当前的文件根本没有占用那么多空间。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/clean-var/already.png"
+width="1088"
+height="522"
+srcset="https://apowerfulmei.github.io/p/clean-var/already_hu_74bdfba7a232e9ac.png 480w, https://apowerfulmei.github.io/p/clean-var/already_hu_833f9af766d65246.png 1024w"
+loading="lazy"
+alt="now"
+class="gallery-image"
+data-flex-grow="208"
+data-flex-basis="500px"
+&gt;&lt;/p&gt;
+&lt;p&gt;按理来说还有十几G的空间才对。&lt;/p&gt;
+&lt;p&gt;查阅资料发现当进程打开了某个文件时，只要该进程保持打开该文件，即使将其删除，它依然存在于磁盘中。这意味着，进程并不知道文件已经被删除，它仍然可以向打开该文件时提供给它的文件描述符进行读取和写入。这个文件仅对该进程可见，对其他进程不可见，&lt;strong&gt;因为已经删除了其相应的目录索引节点&lt;/strong&gt;。这也就是存在着幽灵文件占用&lt;code&gt;/var&lt;/code&gt;目录磁盘空间的原因。&lt;/p&gt;
+&lt;p&gt;我使用命令&lt;code&gt;lsof | grep delete&lt;/code&gt;查看是否有进程在占用已经删除了的文件，发现果然如此。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/delete.png"
+loading="lazy"
+alt="delete"
+&gt;&lt;/p&gt;
+&lt;p&gt;将这些进程&lt;code&gt;kill&lt;/code&gt;之后，磁盘空间果然得到了释放。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/clean-var/free.png"
+width="782"
+height="154"
+srcset="https://apowerfulmei.github.io/p/clean-var/free_hu_718c98aaa18f16d3.png 480w, https://apowerfulmei.github.io/p/clean-var/free_hu_7a3d7d63a9f850d8.png 1024w"
+loading="lazy"
+alt="free"
+class="gallery-image"
+data-flex-grow="507"
+data-flex-basis="1218px"
+&gt;&lt;/p&gt;
+&lt;h2 id="参考"&gt;参考
+&lt;/h2&gt;&lt;p&gt;&lt;a class="link" href="https://blog.csdn.net/ithomer/article/details/8649706" target="_blank" rel="noopener"
+&gt;https://blog.csdn.net/ithomer/article/details/8649706&lt;/a&gt;&lt;/p&gt;</description></item></channel></rss>

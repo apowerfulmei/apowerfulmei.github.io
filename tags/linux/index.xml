@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Linux on apowerfulmei</title><link>https://apowerfulmei.github.io/tags/linux/</link><description>Recent content in Linux on apowerfulmei</description><generator>Hugo -- gohugo.io</generator><language>en-us</language><lastBuildDate>Wed, 28 Jan 2026 00:00:00 +0000</lastBuildDate><atom:link href="https://apowerfulmei.github.io/tags/linux/index.xml" rel="self" type="application/rss+xml"/><item><title>kdump 系统配置</title><link>https://apowerfulmei.github.io/p/hello-kdump/</link><pubDate>Wed, 28 Jan 2026 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/hello-kdump/</guid><description>&lt;h1 id="kdump在linux环境下的配置"&gt;Kdump在Linux环境下的配置
+&lt;/h1&gt;&lt;p&gt;最近在交CNVD时用到了Kdump，用它来捕获系统崩溃后的崩溃信息，这里进行一个简单的记录。&lt;/p&gt;
+&lt;h2 id="kdump原理"&gt;Kdump原理
+&lt;/h2&gt;&lt;p&gt;Kdump使用了一种双内核的结构，主内核正常运行，但会预留一块区域保存crashkernel，另一个是捕获内核，当主内核崩溃时，它会进入预留的区域运行。另一种关键技术是Kexec，主内核崩溃时会通过Kexec立即跳转到捕获内核中，捕获内核随机运行，读取主内核中的旧数据，保存下崩溃现场，数据保存完毕以后重启。&lt;/p&gt;
+&lt;h2 id="kdump安装前的配置"&gt;Kdump安装前的配置
+&lt;/h2&gt;&lt;p&gt;&lt;strong&gt;vmlinux安装&lt;/strong&gt; 安装Kdump之前，首先我们需要检查&lt;code&gt;/usr/lib/debug&lt;/code&gt;下是否为空，如果为空我们需要下载带调试符号的内核镜像，Kdump的核心工具crash需要用它来分析生成的vmcore文件。可以用如下命令进行安装：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
+&lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt; 1
+&lt;/span&gt;&lt;span class="lnt"&gt; 2
+&lt;/span&gt;&lt;span class="lnt"&gt; 3
+&lt;/span&gt;&lt;span class="lnt"&gt; 4
+&lt;/span&gt;&lt;span class="lnt"&gt; 5
+&lt;/span&gt;&lt;span class="lnt"&gt; 6
+&lt;/span&gt;&lt;span class="lnt"&gt; 7
+&lt;/span&gt;&lt;span class="lnt"&gt; 8
+&lt;/span&gt;&lt;span class="lnt"&gt; 9
+&lt;/span&gt;&lt;span class="lnt"&gt;10
+&lt;/span&gt;&lt;span class="lnt"&gt;11
+&lt;/span&gt;&lt;span class="lnt"&gt;12
+&lt;/span&gt;&lt;span class="lnt"&gt;13
+&lt;/span&gt;&lt;span class="lnt"&gt;14
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-shell" data-lang="shell"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="c1"&gt;# GPG密钥导入&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys C8CAB6595FDFF622
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="nv"&gt;codename&lt;/span&gt;&lt;span class="o"&gt;=&lt;/span&gt;&lt;span class="k"&gt;$(&lt;/span&gt;lsb_release -c &lt;span class="p"&gt;|&lt;/span&gt; awk &lt;span class="s1"&gt;&amp;#39;{print $2}&amp;#39;&lt;/span&gt;&lt;span class="k"&gt;)&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;sudo tee /etc/apt/sources.list.d/ddebs.list &lt;span class="s"&gt;&amp;lt;&amp;lt; EOF
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s"&gt;deb http://ddebs.ubuntu.com/ ${codename} main restricted universe multiverse
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s"&gt;deb http://ddebs.ubuntu.com/ ${codename}-security main restricted universe multiverse
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s"&gt;deb http://ddebs.ubuntu.com/ ${codename}-updates main restricted universe multiverse
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s"&gt;deb http://ddebs.ubuntu.com/ ${codename}-proposed main restricted universe multiverse
+&lt;/span&gt;&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;&lt;span class="s"&gt;EOF&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;sudo apt-get update
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;sudo apt-get install linux-image-&lt;span class="k"&gt;$(&lt;/span&gt;uname -r&lt;span class="k"&gt;)&lt;/span&gt;-dbgsym
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;安装完成之后，&lt;code&gt;/usr/lib/debug&lt;/code&gt;目录下就会出现带符号调试信息的内核：&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/hello-kdump/vmlinux.png"
+width="1184"
+height="142"
+srcset="https://apowerfulmei.github.io/p/hello-kdump/vmlinux_hu_a6f4a00a9ee45ec0.png 480w, https://apowerfulmei.github.io/p/hello-kdump/vmlinux_hu_dc4b409841309248.png 1024w"
+loading="lazy"
+alt="vmlinux"
+class="gallery-image"
+data-flex-grow="833"
+data-flex-basis="2001px"
+&gt;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;系统配置&lt;/strong&gt; 随后我们需要在系统启动时预留一部分内存给备用内核，修改&lt;code&gt;/etc/default/grub&lt;/code&gt;，在&lt;code&gt;GRUB_CMDLINE_LINUX&lt;/code&gt;中添加 &lt;code&gt;crashkernel=auto&lt;/code&gt;（或指定大小如&lt;code&gt;crashkernel=256M&lt;/code&gt;）。随后重启使其生效。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/hello-kdump/grub.png"
+width="1216"
+height="208"
+srcset="https://apowerfulmei.github.io/p/hello-kdump/grub_hu_1ac0b8de38b7c47a.png 480w, https://apowerfulmei.github.io/p/hello-kdump/grub_hu_2f4424ec488c3883.png 1024w"
+loading="lazy"
+alt="crashkernel"
+class="gallery-image"
+data-flex-grow="584"
+data-flex-basis="1403px"
+&gt;&lt;/p&gt;
+&lt;h2 id="kdump安装与配置"&gt;Kdump安装与配置
+&lt;/h2&gt;&lt;p&gt;Ubuntu中的安装指令如下：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
+&lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-shell" data-lang="shell"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;sudo apt install linux-crashdump
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;安装的过程中应该会有弹窗，让我们配置kexec-tools或者kdump-tools，我们也可以手动配置：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
+&lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt;1
+&lt;/span&gt;&lt;span class="lnt"&gt;2
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-shell" data-lang="shell"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;sudo dpkg-reconfigure kexec-tools
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;sudo dpkg-reconfigure kdump-tools
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;配置成功后，可以运行如下命令查看状态：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
+&lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt;1
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-fallback" data-lang="fallback"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;kdump-config show
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/hello-kdump/kdump.png"
+width="1226"
+height="564"
+srcset="https://apowerfulmei.github.io/p/hello-kdump/kdump_hu_44462d4d533ae262.png 480w, https://apowerfulmei.github.io/p/hello-kdump/kdump_hu_e4df545077d4f6fa.png 1024w"
+loading="lazy"
+alt="kdump"
+class="gallery-image"
+data-flex-grow="217"
+data-flex-basis="521px"
+&gt;&lt;/p&gt;
+&lt;h2 id="kdump测试"&gt;Kdump测试
+&lt;/h2&gt;&lt;p&gt;运行如下命令触发系统崩溃：&lt;/p&gt;
+&lt;div class="highlight"&gt;&lt;div class="chroma"&gt;
+&lt;table class="lntable"&gt;&lt;tr&gt;&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code&gt;&lt;span class="lnt"&gt;1
+&lt;/span&gt;&lt;span class="lnt"&gt;2
+&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;
+&lt;td class="lntd"&gt;
+&lt;pre tabindex="0" class="chroma"&gt;&lt;code class="language-shell" data-lang="shell"&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;sudo sh -c &lt;span class="s2"&gt;&amp;#34;echo 1 &amp;gt; /proc/sys/kernel/sysrq&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;span class="line"&gt;&lt;span class="cl"&gt;sudo sh -c &lt;span class="s2"&gt;&amp;#34;echo c &amp;gt; /proc/sysrq-trigger&amp;#34;&lt;/span&gt;
+&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&lt;/table&gt;
+&lt;/div&gt;
+&lt;/div&gt;&lt;p&gt;系统崩溃重启以后可以在&lt;code&gt;/var/crash/&lt;/code&gt;目录下看到崩溃转储的vmcore和dmesg信息：&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/hello-kdump/varcrash.png"
+width="1056"
+height="166"
+srcset="https://apowerfulmei.github.io/p/hello-kdump/varcrash_hu_32c35931cc982a6.png 480w, https://apowerfulmei.github.io/p/hello-kdump/varcrash_hu_bfa68b8f6854854a.png 1024w"
+loading="lazy"
+alt="varcrash"
+class="gallery-image"
+data-flex-grow="636"
+data-flex-basis="1526px"
+&gt;&lt;/p&gt;
+&lt;h2 id="参考"&gt;参考
+&lt;/h2&gt;&lt;p&gt;&lt;a class="link" href="https://blog.csdn.net/Javachichi/article/details/139823714" target="_blank" rel="noopener"
+&gt;https://blog.csdn.net/Javachichi/article/details/139823714&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;&lt;a class="link" href="https://blog.csdn.net/dwh0403/article/details/123551691" target="_blank" rel="noopener"
+&gt;https://blog.csdn.net/dwh0403/article/details/123551691&lt;/a&gt;&lt;/p&gt;</description></item><item><title>var目录清理</title><link>https://apowerfulmei.github.io/p/clean-var/</link><pubDate>Mon, 16 Jun 2025 00:00:00 +0000</pubDate><guid>https://apowerfulmei.github.io/p/clean-var/</guid><description>&lt;h1 id="清理var目录"&gt;清理var目录
+&lt;/h1&gt;&lt;h2 id="清理过程"&gt;清理过程
+&lt;/h2&gt;&lt;p&gt;今天运行我的主机的时候突然提示var目录占满了，使用&lt;code&gt;df -h&lt;/code&gt;查看，19G空间都被占满了。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/clean-var/mem.png"
+width="758"
+height="136"
+srcset="https://apowerfulmei.github.io/p/clean-var/mem_hu_5931f203e735eaae.png 480w, https://apowerfulmei.github.io/p/clean-var/mem_hu_81dd9007645cb445.png 1024w"
+loading="lazy"
+alt="df"
+class="gallery-image"
+data-flex-grow="557"
+data-flex-basis="1337px"
+&gt;&lt;/p&gt;
+&lt;p&gt;随机我准备对var目录进行清理，到目录下查看存储量占用时，却发现当前的文件根本没有占用那么多空间。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/clean-var/already.png"
+width="1088"
+height="522"
+srcset="https://apowerfulmei.github.io/p/clean-var/already_hu_74bdfba7a232e9ac.png 480w, https://apowerfulmei.github.io/p/clean-var/already_hu_833f9af766d65246.png 1024w"
+loading="lazy"
+alt="now"
+class="gallery-image"
+data-flex-grow="208"
+data-flex-basis="500px"
+&gt;&lt;/p&gt;
+&lt;p&gt;按理来说还有十几G的空间才对。&lt;/p&gt;
+&lt;p&gt;查阅资料发现当进程打开了某个文件时，只要该进程保持打开该文件，即使将其删除，它依然存在于磁盘中。这意味着，进程并不知道文件已经被删除，它仍然可以向打开该文件时提供给它的文件描述符进行读取和写入。这个文件仅对该进程可见，对其他进程不可见，&lt;strong&gt;因为已经删除了其相应的目录索引节点&lt;/strong&gt;。这也就是存在着幽灵文件占用&lt;code&gt;/var&lt;/code&gt;目录磁盘空间的原因。&lt;/p&gt;
+&lt;p&gt;我使用命令&lt;code&gt;lsof | grep delete&lt;/code&gt;查看是否有进程在占用已经删除了的文件，发现果然如此。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/delete.png"
+loading="lazy"
+alt="delete"
+&gt;&lt;/p&gt;
+&lt;p&gt;将这些进程&lt;code&gt;kill&lt;/code&gt;之后，磁盘空间果然得到了释放。&lt;/p&gt;
+&lt;p&gt;&lt;img src="https://apowerfulmei.github.io/p/clean-var/free.png"
+width="782"
+height="154"
+srcset="https://apowerfulmei.github.io/p/clean-var/free_hu_718c98aaa18f16d3.png 480w, https://apowerfulmei.github.io/p/clean-var/free_hu_7a3d7d63a9f850d8.png 1024w"
+loading="lazy"
+alt="free"
+class="gallery-image"
+data-flex-grow="507"
+data-flex-basis="1218px"
+&gt;&lt;/p&gt;
+&lt;h2 id="参考"&gt;参考
+&lt;/h2&gt;&lt;p&gt;&lt;a class="link" href="https://blog.csdn.net/ithomer/article/details/8649706" target="_blank" rel="noopener"
+&gt;https://blog.csdn.net/ithomer/article/details/8649706&lt;/a&gt;&lt;/p&gt;</description></item></channel></rss>
