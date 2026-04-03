@@ -828,7 +828,7 @@ func (ma *mutationArgs) chooseArg(r *rand.Rand) (Arg, ArgCtx) {
 
 **2. ChoiceTable 重建的开销**
 
-当前 ChoiceTable 每 33（小 corpus）或 333（大 corpus）个程序重建一次，`BuildChoiceTable` 的时间复杂度为 O(N²)，其中 N 是 syscall 数量。对于 Linux（约 400 个 syscall），一次重建需要遍历 160,000 个元素对。虽然通过 goroutine 异步执行不阻塞主循环，但当 corpus 增长非常快时（如多个 fuzzer 并行运行），可能仍会成为瓶颈。
+当前 ChoiceTable 每 33（小 corpus）或 333（大 corpus）个程序重建一次，`BuildChoiceTable` 的时间复杂度为 O(N²)，其中 N 是 syscall 数量。虽然通过 goroutine 异步执行不阻塞主循环，但当 corpus 增长非常快时（如多个 fuzzer 并行运行），可能仍会成为瓶颈。
 
 **3. 动态优先级的简单加法合并**
 
