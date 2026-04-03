@@ -16,7 +16,7 @@ weight: 1
 
 文章使用**WorkBuddy**撰写。
 
-## 1、引言：为什么 syzkaller 需要精心设计队列？
+## 引言：为什么 syzkaller 需要精心设计队列？
 
 内核模糊测试面临一个天然的矛盾：**效率与探索广度的取舍**。
 
@@ -28,7 +28,7 @@ syzkaller 通过一套**五级优先级队列系统**来平衡这一矛盾。不
 
 ---
 
-## 2、总体架构：execQueues 结构体
+## 总体架构：execQueues 结构体
 
 所有队列逻辑的入口是 `fuzzer.go` 中的 `execQueues` 结构体：
 
@@ -75,7 +75,7 @@ func newExecQueues(fuzzer *Fuzzer) execQueues {
 
 ---
 
-## 3、五级调度链：优先级从高到低
+## 五级调度链：优先级从高到低
 
 `queue.Order` 的实现非常简洁——每次调用 `Next()` 时，依次尝试每个 Source，遇到第一个非 nil 的结果立即返回：
 
@@ -129,9 +129,9 @@ func (a *alternate) Next() *Request {
 
 ---
 
-## 4、底层队列实现：PlainQueue 与 DynamicOrderer
+## 底层队列实现：PlainQueue 与 DynamicOrderer
 
-### 4.1 PlainQueue：简单高效的 FIFO 队列
+### PlainQueue：简单高效的 FIFO 队列
 
 `PlainQueue` 是标准的先进先出队列，用于 `candidateQueue` 和 `smashQueue`：
 
@@ -157,7 +157,7 @@ func (pq *PlainQueue) Submit(req *Request) {
 
 值得注意的是它的内存管理：并非每次 Pop 都缩容，而是在"已消费量超过一半且总量超过 128"时才做一次 copy+截断，避免频繁的内存分配。
 
-### 4.2 DynamicOrderer：基于最小堆的动态优先级队列
+### DynamicOrderer：基于最小堆的动态优先级队列
 
 `DynamicOrderer` 用于 `triageCandidateQueue` 和 `triageQueue`，它的特殊之处在于**支持在运行时动态创建子队列**，并严格保证先创建的子队列中的元素有更高的优先级：
 
@@ -200,11 +200,11 @@ triage 任务是随着 fuzz 执行动态产生的——每发现一批新 signal
 
 ---
 
-## 5、候选程序（Candidate）的生命周期
+## 候选程序（Candidate）的生命周期
 
 候选程序是 syzkaller 重要的"种子输入"来源，主要来自本地持久化 corpus 和 syz-hub 的同步。以下是其完整生命周期：
 
-### 5.1 加入队列
+### 加入队列
 
 ```go
 func (fuzzer *Fuzzer) AddCandidates(candidates []Candidate) {
@@ -221,9 +221,9 @@ func (fuzzer *Fuzzer) AddCandidates(candidates []Candidate) {
 }
 ```
 
-候选程序携带 `Important: true` 标志，这对于 Retry 机制有重要意义（详见第 8 节）。
+候选程序携带 `Important: true` 标志，这对于 Retry 机制有重要意义（详见后文 Retry 章节）。
 
-### 5.2 执行与结果处理
+### 执行与结果处理
 
 每个请求执行完成后，都会触发 `processResult`：
 
@@ -252,7 +252,7 @@ func (fuzzer *Fuzzer) processResult(req *queue.Request, res *queue.Result, flags
 
 这里有一个关键设计：**候选程序触发的 triage 任务会进入 `triageCandidateQueue`（优先级 1）**，而普通 fuzz 程序触发的 triage 进入 `triageQueue`（优先级 3）。这保证了候选 triage 始终优先于普通 triage。
 
-### 5.3 重试机制
+### 重试机制
 
 ```go
 // Corpus candidates may have flaky coverage, so we give them a second chance.
@@ -273,11 +273,11 @@ if len(triage) == 0 && flags&ProgFromCorpus != 0 && attempt < maxCandidateAttemp
 
 ---
 
-## 6、Triage 机制：从 signal 到 corpus 的完整路径
+## Triage 机制：从 signal 到 corpus 的完整路径
 
 triage 是 syzkaller 确认并固化新发现的核心流程，也是队列系统与 corpus 增长之间的桥梁。
 
-### 6.1 触发条件
+### 触发条件
 
 ```go
 func (fuzzer *Fuzzer) triageProgCall(p *prog.Prog, info *flatrpc.CallInfo, call int, triage *map[int]*triageCall) {
@@ -300,7 +300,7 @@ func (fuzzer *Fuzzer) triageProgCall(p *prog.Prog, info *flatrpc.CallInfo, call 
 
 `addRawMaxSignal` 尝试将当前 signal 合并进全局最大 signal 集合，只有当出现**此前从未见过的 signal 位**时才返回非空集合，触发 triage。
 
-### 6.2 deflake：确认 signal 的稳定性
+### deflake：确认 signal 的稳定性
 
 triage 最核心的子步骤是 deflake——通过多次重复执行来过滤掉 flaky（不稳定）的 signal：
 
@@ -323,7 +323,7 @@ const (
 
 deflake 还有一个工程细节：每次重执行时会通过 `Avoid` 字段标记已用过的 VM，尽量让同一个程序在**不同 VM** 上执行，降低因某台 VM 状态异常导致的误判。
 
-### 6.3 minimize → smash/hints → corpus.Save
+### minimize → smash/hints → corpus.Save
 
 deflake 通过后，triage 会进入 minimize 阶段，将程序精简到能触发 signal 的最小形式，然后：
 
@@ -363,9 +363,9 @@ ChoiceTable 更新 → 反馈给 genFuzz
 
 ---
 
-## 7、smash 与 hints：深度挖掘已知 corpus
+## smash 与 hints：深度挖掘已知 corpus
 
-### 7.1 smashJob：暴力变异
+### smashJob：暴力变异
 
 `smashJob` 对刚入 corpus 的程序做 25 次随机变异并执行，目的是在新发现的代码路径附近进行密集探索：
 
@@ -389,7 +389,7 @@ func (job *smashJob) run(fuzzer *Fuzzer) {
 }
 ```
 
-### 7.2 hintsJob：比较引导的精准变异
+### hintsJob：比较引导的精准变异
 
 `hintsJob` 利用 KCOV 的 comparison tracing（kcov_cmp）功能，收集程序执行时内核中的比较操作数，然后将程序参数替换为这些操作数进行变异。这是一种**数据流引导的变异策略**，能够精准突破条件检查：
 
@@ -418,7 +418,7 @@ hints 同样提交到 `smashQueue`，与 smash 共享优先级 4，在 `Alternat
 
 ---
 
-## 8、Retry 机制：对抗 VM 不稳定性
+## Retry 机制：对抗 VM 不稳定性
 
 内核 fuzzing 的特殊性在于：VM 随时可能因为被测程序而崩溃或重启。`queue.Retry` 专门处理这种情况：
 
@@ -452,7 +452,7 @@ func (r *retryer) done(req *Request, res *Result) bool {
 
 ---
 
-## 9、Distributor：基于 VM 回避的调度优化
+## Distributor：基于 VM 回避的调度优化
 
 `Distributor` 是一个可选的调度增强层，它在 `Next()` 中接受 VM ID 参数，并实现了一种**软 VM 回避**机制：
 
@@ -483,7 +483,7 @@ func (dist *Distributor) Next(vm int) *Request {
 
 ---
 
-## 10、Deduplicator：避免重复执行
+## Deduplicator：避免重复执行
 
 `Deduplicator` 是另一个调度增强层，维护了一个已运行请求的哈希表：
 
@@ -514,7 +514,7 @@ func (d *Deduplicator) Next() *Request {
 
 ---
 
-## 11、Corpus 对队列的反馈：正反馈闭环
+## Corpus 对队列的反馈：正反馈闭环
 
 corpus 的增长反过来影响 `genFuzz` 阶段的程序生成和变异。`genFuzz` 中的变异路径调用：
 
@@ -543,7 +543,7 @@ triage → minimize → 加入 corpus（signal 权重高）
 
 ---
 
-## 12、设计哲学总结
+## 设计哲学总结
 
 | 设计决策 | 工程考量 |
 |----------|----------|
