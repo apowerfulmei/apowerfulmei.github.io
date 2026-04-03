@@ -95,9 +95,9 @@ func signalPrio(p *prog.Prog, info *flatrpc.CallInfo, call int) (prio uint8) {
 | 条件 | prio 值 | 含义 |
 |------|---------|------|
 | call == -1 | 0 | Extra call，最低价值 |
-| 调用失败（errno != 0）或含 any | 0 | 调用失败，且参数含低信息量数据 |
-| 调用成功 + 含 any | 2 | 调用成功，但参数含 any |
+| 调用失败 + 含 any | 0 | 调用失败，且参数含低信息量数据 |
 | 调用失败 + 不含 any | 1 | 调用失败，但参数有具体语义 |
+| 调用成功 + 含 any | 2 | 调用成功，但参数含 any |
 | 调用成功 + 不含 any | **3** | 调用成功 + 参数语义完整，**最高价值** |
 
 设计意图值得细说：
@@ -380,7 +380,7 @@ for _, w0 := range weights {
 
 - `w0.inout * w1.in * 3/2`：c0 产生（inout）某个资源，c1 消费（in）该资源 → **高优先级**。额外乘以 3/2 偏向"生产→消费"方向。
 - `w0.inout * w1.inout`：两者都读写该资源 → 中等优先级（互相影响）。
-- `w0.in * w1.in`：两者只读 → **不计算**（没有资源流动）。
+- `w0.in * w1.in`：两者都只读输入该资源 → 公式中无对应项（没有资源流动，不产生优先级）。
 
 以 `open` 和 `read` 为例：
 - `open` 的输出包含 `fd`（resource, `inout` 权重 10）
@@ -647,7 +647,7 @@ const (
 
 // IntType: 整数类型
 func (t *IntType) getMutationPrio(...) (prio float64, stopRecursion bool) {
-    plainPrio := math.Log2(float64(t.TypeBitSize())) + 0.1*maxPriority  // ~4.3 + 1.0 = 5.3
+    plainPrio := math.Log2(float64(t.TypeBitSize())) + 0.1*maxPriority  // 32 位: log₂(32)+1=6.0, 64 位: log₂(64)+1=7.0
     if t.Kind != IntRange {
         return plainPrio, false
     }
@@ -735,7 +735,7 @@ func rangeSizePrio(size uint64) (prio float64) {
 | BufferCompressed | **10** | 磁盘镜像等复杂数据，变异价值最高 |
 | IntType（Range ≤ 256） | **10** | 有限范围值得尝试所有值 |
 | BufferType（普通） | **8.0** | blob 数据变异 |
-| IntType（普通） | ~5.3 | `log₂(bitsize) + 1.0`，64 位整数约 7.0 |
+| IntType（普通） | 6.0~7.0 | `log₂(bitsize) + 1.0`，32 位=6.0，64 位=7.0 |
 | ResourceType / VmaType / ProcType | **5.0** | 替换资源句柄、内存地址 |
 | PtrType | **3.0** | 指针变异中等价值 |
 | LenType | **1.0** | 长度修改通常产生"不正确"的结果 |
